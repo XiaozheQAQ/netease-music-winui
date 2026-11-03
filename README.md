@@ -120,13 +120,27 @@ dotnet build .\winuitest\winuitest.csproj -p:Platform=x64 -p:MSBuildEnableWorklo
 
 ## 发布
 
+### MSI 安装包（推荐，无需导入证书）
+
+```powershell
+pwsh -File .\scripts\package-msi.ps1
+```
+
+脚本通过项目工具清单恢复固定版本的官方 WiX 4.0.6，复用非打包、自包含的 WinUI 发布载荷，生成 `artifacts/msi/LumaMusic_1.0.0_x64.msi`。已经发布和准备工具时可添加 `-SkipPublish -SkipToolRestore` 仅重新打包。
+
+双击 MSI 即可安装到当前用户的 `%LOCALAPPDATA%\Programs\Luma Music`，不要求导入签名证书。安装向导支持选择目录；开始菜单提供启动与卸载入口，也可从 Windows“设置 → 应用”卸载。安装包包含 .NET、Windows App SDK、Node.js 与音源依赖；卸载保留独立存放的收藏、历史和设置。
+
+当前 MSI 未使用商业代码签名，Windows 或 SmartScreen 仍可能显示“未知发布者”等安全提示。`artifacts/msi/` 同时提供 `INSTALL.txt`、`SHA256SUMS.txt` 和包信息；安装或卸载过程不会导入任何证书。
+
+### 文件夹版本
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\publish.ps1 -Architecture x64
 ```
 
 产物位于 `artifacts/win-x64/publish/`。请分发整个文件夹，运行 `LumaMusic.exe`。它包含 .NET、Windows App SDK 和 Node.js 运行时，不依赖 Electron 或 WebView。ARM64 使用 `-Architecture arm64`，准备脚本会选择匹配架构的 Node.js 运行时。
 
-### MSIX 安装包
+### MSIX 安装包（可选，需要信任签名证书）
 
 使用 PowerShell 7.2+，在解决方案目录执行：
 

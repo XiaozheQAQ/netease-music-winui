@@ -286,6 +286,7 @@ FakesAssemblies/
 node_modules/
 winuitest/MusicSource/runtime/
 .build/
+.wix/
 
 # Local accounts, signing keys and release output
 .env

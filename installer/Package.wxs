@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="Luma Music" Manufacturer="XiaozheQAQ" Version="$(var.ProductVersion)"
+           Language="2052" Codepage="65001" Scope="perUser" InstallerVersion="500"
+           UpgradeCode="7EFC0CA9-A4B3-45CB-AB11-C7F1B35E22AF">
+    <SummaryInformation Description="Luma Music native Windows music player"
+                        Manufacturer="XiaozheQAQ" />
+    <MajorUpgrade DowngradeErrorMessage="已安装较新版本的 Luma Music。"
+                  AllowSameVersionUpgrades="yes" Schedule="afterInstallInitialize" />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+    <Property Id="WINDOWSBUILDNUMBER" Secure="yes">
+      <RegistrySearch Id="ReadWindowsBuild" Root="HKLM"
+                      Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion"
+                      Name="CurrentBuildNumber" Type="raw" Bitness="always64" />
+    </Property>
+    <Launch Condition="Installed OR (VersionNT64 AND WINDOWSBUILDNUMBER &gt;= 19041)"
+            Message="Luma Music 需要 64 位 Windows 10 2004（版本 19041）或更新系统。" />
+    <Property Id="ARPPRODUCTICON" Value="LumaMusicIcon" />
+    <Property Id="REMEMBEREDINSTALLFOLDER" Secure="yes">
+      <RegistrySearch Id="PreviousInstallLocation" Root="HKCU"
+                      Key="Software\XiaozheQAQ\LumaMusic\Installer" Name="InstallLocation"
+                      Type="raw" Bitness="always64" />
+    </Property>
+    <SetProperty Id="INSTALLFOLDER" Value="[REMEMBEREDINSTALLFOLDER]" Before="CostFinalize"
+                 Sequence="both" Condition="NOT INSTALLFOLDER AND REMEMBEREDINSTALLFOLDER" />
+    <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLFOLDER]" After="CostFinalize" Sequence="execute" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/XiaozheQAQ/netease-music-winui" />
+    <Icon Id="LumaMusicIcon" SourceFile="$(var.PublishDir)\Assets\Luma.ico" />
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="LocalProgramsFolder" Name="Programs">
+        <Directory Id="INSTALLFOLDER" Name="Luma Music" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="Luma Music">
+        <Component Id="StartMenuShortcuts" Guid="AE9DE780-5657-46EB-8B2E-D469BC94F82E">
+          <Shortcut Id="StartMenuShortcut" Name="Luma Music" Description="Luma Music"
+                    Target="[INSTALLFOLDER]LumaMusic.exe" WorkingDirectory="INSTALLFOLDER"
+                    Icon="LumaMusicIcon" />
+          <Shortcut Id="UninstallShortcut" Name="卸载 Luma Music"
+                    Target="[System64Folder]msiexec.exe" Arguments="/x [ProductCode]" />
+          <RemoveFolder Id="RemoveStartMenuFolder" On="uninstall" />
+          <RemoveFolder Id="RemoveInstallFolder" Directory="INSTALLFOLDER" On="uninstall" />
+          <RemoveFolder Id="RemoveEmptyProgramsFolder" Directory="LocalProgramsFolder" On="uninstall" />
+          <RegistryValue Root="HKCU" Key="Software\XiaozheQAQ\LumaMusic\Installer"
+                         Name="Installed" Type="integer" Value="1" KeyPath="yes" />
+          <RegistryValue Root="HKCU" Key="Software\XiaozheQAQ\LumaMusic\Installer"
+                         Name="InstallLocation" Type="string" Value="[INSTALLFOLDER]" />
+          <RemoveRegistryKey Root="HKCU" Key="Software\XiaozheQAQ\LumaMusic\Installer"
+                             Action="removeOnUninstall" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="MainFeature" Title="Luma Music" Level="1">
+      <ComponentGroupRef Id="PublishedPayload" />
+      <ComponentRef Id="StartMenuShortcuts" />
+    </Feature>
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
+  </Package>
+</Wix>
