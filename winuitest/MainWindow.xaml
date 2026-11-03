@@ -1,19 +1,327 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Window
-    x:Class="winuitest.MainWindow"
+<Window x:Class="winuitest.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:winuitest"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d"
-    Title="winuitest">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:controls="using:winuitest.Controls"
+    xmlns:models="using:winuitest.Models" xmlns:views="using:winuitest.Views" Title="Luma Music">
+    <Window.SystemBackdrop><MicaBackdrop Kind="BaseAlt" /></Window.SystemBackdrop>
+    <Grid x:Name="Root" RequestedTheme="Default" Background="{ThemeResource LumaWindowBrush}" KeyboardAcceleratorPlacementMode="Hidden" Loaded="Root_Loaded" SizeChanged="Root_SizeChanged">
+        <Grid.Resources>
+            <!-- Native GridViewItemPresenter reads this resource for every pointer state. -->
+            <CornerRadius x:Key="GridViewItemCornerRadius">16</CornerRadius>
+            <Style x:Key="TrackListItemStyle" TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Margin" Value="0,2" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+            </Style>
+            <Style x:Key="PlaylistCardStyle" TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="VerticalContentAlignment" Value="Top" />
+                <Setter Property="Padding" Value="10,10,10,14" />
+                <Setter Property="Margin" Value="4,4,4,8" />
+                <Setter Property="CornerRadius" Value="16" />
+            </Style>
+            <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+                <Setter Property="Background" Value="Transparent" /><Setter Property="BorderThickness" Value="0" /><Setter Property="CornerRadius" Value="8" />
+                <Setter Property="Width" Value="36" /><Setter Property="Height" Value="36" /><Setter Property="Padding" Value="0" />
+            </Style>
+            <Style x:Key="PlayerIconButton" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+                <Setter Property="Background" Value="Transparent" /><Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Foreground" Value="{ThemeResource LumaTextSecondaryBrush}" />
+                <Setter Property="CornerRadius" Value="16" /><Setter Property="Width" Value="32" /><Setter Property="Height" Value="32" /><Setter Property="Padding" Value="0" />
+            </Style>
+            <Style x:Key="SectionTitle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="22" /><Setter Property="FontWeight" Value="SemiBold" /><Setter Property="Foreground" Value="{ThemeResource LumaTextPrimaryBrush}" /><Setter Property="CharacterSpacing" Value="-25" />
+            </Style>
+            <DataTemplate x:Key="TrackTemplate" x:DataType="models:Track">
+                <controls:TrackColumnsGrid Height="72" SizeChanged="TrackRow_SizeChanged">
+                    <Border controls:TrackColumnsGrid.Field="Cover" Width="44" Height="44" VerticalAlignment="Center" Background="{ThemeResource LumaCardPlaceholderBrush}" CornerRadius="8"><Grid><controls:FilledIcon Kind="Music" FontSize="18" Foreground="{ThemeResource LumaTextTertiaryBrush}" /><Image Source="{x:Bind ArtworkUrl}" Stretch="Fill" /></Grid></Border>
+                    <StackPanel controls:TrackColumnsGrid.Field="Title" VerticalAlignment="Center" Spacing="4"><TextBlock Text="{x:Bind Title}" FontWeight="SemiBold" FontSize="14" TextTrimming="CharacterEllipsis" /><TextBlock Text="{x:Bind Artist}" Foreground="{ThemeResource LumaTextSecondaryBrush}" FontSize="12" TextTrimming="CharacterEllipsis" /></StackPanel>
+                    <TextBlock controls:TrackColumnsGrid.Field="Album" Text="{x:Bind Album}" FontSize="12" Foreground="{ThemeResource LumaTextSecondaryBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    <TextBlock controls:TrackColumnsGrid.Field="Duration" Text="{x:Bind DisplayDuration}" FontSize="12" Foreground="{ThemeResource LumaTextSecondaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                    <Button controls:TrackColumnsGrid.Field="Favorite" Tag="{x:Bind}" Click="FavoriteTrack_Click" Loaded="FavoriteButton_Loaded" Style="{StaticResource IconButton}" Width="32" Height="36" VerticalAlignment="Center" ToolTipService.ToolTip="收藏 / 取消收藏" AutomationProperties.Name="收藏歌曲"><controls:FilledIcon Kind="HeartOff" FontSize="15" Foreground="{ThemeResource LumaTextSecondaryBrush}" /></Button>
+                    <Button controls:TrackColumnsGrid.Field="More" Tag="{x:Bind}" Click="TrackMenu_Click" Style="{StaticResource IconButton}" Width="32" Height="36" VerticalAlignment="Center" ToolTipService.ToolTip="更多" AutomationProperties.Name="歌曲选项"><controls:FilledIcon Kind="More" FontSize="16" /></Button>
+                </controls:TrackColumnsGrid>
+            </DataTemplate>
+        </Grid.Resources>
+        <Grid.RowDefinitions><RowDefinition Height="48" /><RowDefinition Height="*" /><RowDefinition x:Name="PlayerBarRow" Height="96" /></Grid.RowDefinitions>
+        <Grid.ColumnDefinitions><ColumnDefinition x:Name="SidebarColumn" Width="220" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+        <Border Grid.RowSpan="2" Background="{ThemeResource LumaSidebarBrush}" BorderBrush="{ThemeResource LumaBorderBrush}" BorderThickness="0,0,1,0" />
+        <Grid x:Name="DragRegion" Grid.ColumnSpan="2" Height="48" Background="Transparent"><Grid Margin="20,0,0,0" ColumnSpacing="8" HorizontalAlignment="Left" VerticalAlignment="Center"><Grid.ColumnDefinitions><ColumnDefinition Width="32" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><controls:FilledIcon Kind="Music" Foreground="{ThemeResource LumaAccentBrush}" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" /><TextBlock Grid.Column="1" FontSize="17" CharacterSpacing="-30" VerticalAlignment="Center"><Run Text="Luma " FontWeight="Bold" /><Run Text="Music" Foreground="{ThemeResource LumaTextSecondaryBrush}" /></TextBlock></Grid></Grid>
+        <NavigationView x:Name="MainNavigation" Grid.Row="1" PaneDisplayMode="Left"
+            IsPaneOpen="True" OpenPaneLength="220" CompactPaneLength="48"
+            IsPaneToggleButtonVisible="False" IsBackButtonVisible="Collapsed"
+            IsTitleBarAutoPaddingEnabled="False" IsSettingsVisible="True"
+            Background="Transparent" ItemInvoked="MainNavigation_ItemInvoked">
+            <NavigationView.Resources>
+                <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="Transparent" />
+                <Thickness x:Key="NavigationViewItemMargin">12,2,12,2</Thickness>
+                <CornerRadius x:Key="NavigationViewItemCornerRadius">7</CornerRadius>
+            </NavigationView.Resources>
+            <NavigationView.PaneHeader>
+                <Button x:Name="AccountButton" Click="Account_Click" Margin="12,12,12,18" Padding="8,12" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Background="Transparent" BorderThickness="0" CornerRadius="8" AutomationProperties.Name="网易云音乐账号">
+                    <Grid ColumnSpacing="8"><Grid.ColumnDefinitions><ColumnDefinition Width="32" /><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /></Grid.ColumnDefinitions>
+                        <Grid Width="32" Height="32" VerticalAlignment="Center"><Border x:Name="SidebarGuestBadge" CornerRadius="16" Background="{ThemeResource LumaCardPlaceholderBrush}"><controls:FilledIcon Kind="Person" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border><PersonPicture x:Name="SidebarAvatar" Width="32" Height="32" Visibility="Collapsed" /></Grid>
+                        <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center"><TextBlock x:Name="SidebarAccountName" Text="登录网易云音乐" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" /><TextBlock x:Name="SidebarAccountCaption" Text="同步你的音乐" FontSize="11" Foreground="{ThemeResource LumaTextSecondaryBrush}" TextTrimming="CharacterEllipsis" /></StackPanel>
+                        <controls:FilledIcon Grid.Column="2" Kind="ChevronRight" FontSize="10" Foreground="{ThemeResource LumaTextTertiaryBrush}" VerticalAlignment="Center" />
+                    </Grid>
+                </Button>
+            </NavigationView.PaneHeader>
+            <NavigationView.MenuItems>
+                <NavigationViewItemHeader Content="浏览" />
+                <NavigationViewItem x:Name="DiscoverNav" Content="现在就听" Tag="discover"><NavigationViewItem.Icon><controls:FilledIcon Kind="Home" /></NavigationViewItem.Icon></NavigationViewItem>
+                <NavigationViewItemHeader Content="资料库" />
+                <NavigationViewItem x:Name="FavoritesNav" Content="喜欢的歌曲" Tag="favorites"><NavigationViewItem.Icon><controls:FilledIcon Kind="HeartOff" /></NavigationViewItem.Icon></NavigationViewItem>
+                <NavigationViewItem x:Name="RecentNav" Content="最近播放" Tag="recent"><NavigationViewItem.Icon><controls:FilledIcon Kind="Clock" /></NavigationViewItem.Icon></NavigationViewItem>
+                <NavigationViewItemHeader Content="网易云音乐" />
+                <NavigationViewItem x:Name="CloudNav" Content="我的歌单" Tag="cloud"><NavigationViewItem.Icon><controls:FilledIcon Kind="Playlist" /></NavigationViewItem.Icon></NavigationViewItem>
+            </NavigationView.MenuItems>
+            <!-- Cloud playlist NavigationViewItems are inserted directly after CloudNav.
+                 The native menu scrolls as one group; the built-in settings row stays below. -->
+        </NavigationView>
+        <Grid Grid.Row="1" Grid.Column="1" Background="{ThemeResource LumaSurfaceBrush}" CornerRadius="12,0,0,0" BorderBrush="{ThemeResource LumaBorderBrush}" BorderThickness="1,1,0,0">
+            <Grid.RowDefinitions><RowDefinition Height="66" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+            <Grid x:Name="PageToolbar" Margin="36,0,36,12" ColumnSpacing="16">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition x:Name="SearchColumn" Width="320" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <TextBlock x:Name="Breadcrumb" Text="为你发现" FontSize="13" Foreground="{ThemeResource LumaTextSecondaryBrush}" VerticalAlignment="Center" />
+                <AutoSuggestBox x:Name="SearchBox" Grid.Column="1" PlaceholderText="搜索歌曲、歌手、专辑" QueryIcon="Find" QuerySubmitted="SearchBox_QuerySubmitted" CornerRadius="9" VerticalAlignment="Center" AutomationProperties.Name="搜索云端音乐" />
+                <Button x:Name="RefreshButton" Grid.Column="2" Style="{StaticResource IconButton}" Click="Refresh_Click" ToolTipService.ToolTip="刷新" AutomationProperties.Name="刷新内容"><controls:FilledIcon Kind="Refresh" FontSize="16" Foreground="{ThemeResource LumaTextSecondaryBrush}" /></Button>
+            </Grid>
+            <InfoBar x:Name="Notice" Grid.Row="1" IsOpen="False" IsClosable="True" Severity="Error" Margin="36,0,36,14" />
+            <Grid Grid.Row="2">
+                <Grid x:Name="PageBody">
+                    <ScrollViewer x:Name="HomeView" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled" HorizontalContentAlignment="Stretch">
+                        <StackPanel x:Name="HomeContent" Margin="36,0,36,32" Spacing="24">
+                            <Grid><StackPanel Spacing="6"><TextBlock x:Name="TodayLabel" Text="" FontSize="12" Foreground="{ThemeResource LumaTextSecondaryBrush}" /><TextBlock x:Name="HomePageTitle" Text="现在就听" FontSize="32" FontWeight="Bold" CharacterSpacing="-50" /></StackPanel></Grid>
+                            <Button x:Name="HeroButton" Click="Hero_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="0" BorderThickness="0" CornerRadius="16" Height="220" AutomationProperties.Name="播放新歌">
+                                <Button.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,0.8"><GradientStop Color="{ThemeResource LumaHeroStartColor}" Offset="0" /><GradientStop Color="{ThemeResource LumaHeroMidColor}" Offset="0.6" /><GradientStop Color="{ThemeResource LumaHeroEndColor}" Offset="1" /></LinearGradientBrush></Button.Background>
+                                <Grid>
+                                    <Ellipse Width="360" Height="360" HorizontalAlignment="Right" Margin="0,-120,-50,0" Fill="#24FFFFFF" />
+                                    <Ellipse Width="280" Height="280" HorizontalAlignment="Right" Margin="0,120,140,-190" Fill="#19FFFFFF" />
+                                    <StackPanel Margin="32,27,0,0" Spacing="12" HorizontalAlignment="Left">
+                                        <TextBlock Text="新歌推荐" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource LumaTextSecondaryBrush}" CharacterSpacing="180" />
+                                        <TextBlock Text="发现新声音" FontSize="34" FontWeight="Bold" LineHeight="46" Foreground="{ThemeResource LumaTextPrimaryBrush}" CharacterSpacing="-60" />
 
-    <Window.SystemBackdrop>
-        <MicaBackdrop />
-    </Window.SystemBackdrop>
+                                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,5,0,0"><Border Background="{ThemeResource LumaAccentBrush}" CornerRadius="16" Padding="15,8"><StackPanel Orientation="Horizontal" Spacing="7"><controls:FilledIcon Kind="Play" FontSize="10" Foreground="{ThemeResource LumaOnAccentBrush}" /><TextBlock Text="播放新歌" FontSize="11" Foreground="{ThemeResource LumaOnAccentBrush}" FontWeight="SemiBold" /></StackPanel></Border></StackPanel>
+                                    </StackPanel>
+                                    <Border x:Name="HeroArtworkBorder" Width="172" Height="172" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,45,0" CornerRadius="9" Background="{ThemeResource LumaCardPlaceholderBrush}" Rotation="8"><Grid><controls:FilledIcon Kind="Music" FontSize="80" Foreground="{ThemeResource LumaTextTertiaryBrush}" /><Image x:Name="HeroArtwork" Stretch="Fill" /></Grid></Border>
+                                </Grid>
+                            </Button>
+                            <Grid><TextBlock Text="为你精选" Style="{StaticResource SectionTitle}" /></Grid>
+                            <GridView x:Name="PlaylistGrid" IsItemClickEnabled="True" ItemClick="PlaylistGrid_ItemClick" SelectionMode="None" ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch" Margin="-14,-4,-14,0" ItemContainerStyle="{StaticResource PlaylistCardStyle}" Loaded="PlaylistCards_Loaded" SizeChanged="PlaylistCards_SizeChanged">
+                                <GridView.ItemsPanel><ItemsPanelTemplate><ItemsWrapGrid Orientation="Horizontal" ItemWidth="172" /></ItemsPanelTemplate></GridView.ItemsPanel>
+                                <GridView.ItemTemplate><DataTemplate x:DataType="models:MusicPlaylist"><StackPanel Spacing="12">
+                                    <Border SizeChanged="SquareArtwork_SizeChanged" Height="156" CornerRadius="14" Background="{ThemeResource LumaCardPlaceholderBrush}"><Grid><controls:FilledIcon Kind="Music" FontSize="40" Foreground="{ThemeResource LumaTextTertiaryBrush}" /><Image Source="{x:Bind ArtworkUrl}" Stretch="Fill" /><Border Background="#65000000" CornerRadius="7" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="8" Padding="7,4"><StackPanel Orientation="Horizontal" Spacing="4"><controls:FilledIcon Kind="Play" FontSize="8" Foreground="White" /><TextBlock Text="{x:Bind PlayCountLabel}" FontSize="9" Foreground="White" /></StackPanel></Border></Grid></Border>
+                                    <TextBlock Text="{x:Bind Title}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
 
-    <Grid>
+                                </StackPanel></DataTemplate></GridView.ItemTemplate>
+                            </GridView>
+                            <Grid><TextBlock Text="新歌速递" Style="{StaticResource SectionTitle}" /><Button Content="查看全部  ›" Click="AllNewSongs_Click" HorizontalAlignment="Right" Background="Transparent" BorderThickness="0" Foreground="{ThemeResource LumaAccentBrush}" FontSize="12" /></Grid>
+                            <ListView x:Name="HomeSongs" SelectionMode="Single" IsItemClickEnabled="True" ItemClick="TrackList_ItemClick" ItemTemplate="{StaticResource TrackTemplate}" ItemContainerStyle="{StaticResource TrackListItemStyle}" Padding="0" ScrollViewer.VerticalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch" />
 
+                        </StackPanel>
+                    </ScrollViewer>
+                    <Grid x:Name="TracksView" Visibility="Collapsed" Margin="36,0,36,20">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <Grid x:Name="CollectionHeader" Margin="0,0,0,24">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <Border x:Name="CollectionCoverBorder" Width="136" Height="136" Margin="0,0,24,0" CornerRadius="12" Background="{ThemeResource LumaCardPlaceholderBrush}" Visibility="Collapsed"><Image x:Name="CollectionCover" Stretch="Fill" /></Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="9"><TextBlock x:Name="CollectionEyebrow" Visibility="Collapsed" Text="YOUR MUSIC" FontSize="10" Foreground="{ThemeResource LumaAccentBrush}" CharacterSpacing="160" /><TextBlock x:Name="PageTitle" FontSize="32" FontWeight="Bold" CharacterSpacing="-50" TextTrimming="CharacterEllipsis" /><TextBlock x:Name="PageDescription" Foreground="{ThemeResource LumaTextSecondaryBrush}" FontSize="12" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" /><Button x:Name="PlayAllButton" Style="{StaticResource AccentButtonStyle}" AutomationProperties.Name="播放全部歌曲" Click="PlayAll_Click" Background="{ThemeResource LumaAccentBrush}" Foreground="{ThemeResource LumaOnAccentBrush}" BorderThickness="0" CornerRadius="7" Margin="0,4,0,0" Padding="16,9"><StackPanel Orientation="Horizontal" Spacing="8"><controls:FilledIcon Kind="Play" FontSize="12" /><TextBlock Text="播放全部" FontSize="12" /></StackPanel></Button></StackPanel>
+                        </Grid>
+                        <controls:TrackColumnsGrid x:Name="TrackHeader" Grid.Row="1" Height="40" BorderBrush="{ThemeResource LumaBorderBrush}" BorderThickness="0,0,0,1" HorizontalAlignment="Left">
+                            <TextBlock controls:TrackColumnsGrid.Field="Title" Text="歌曲 / 歌手" VerticalAlignment="Center" FontSize="11" Foreground="{ThemeResource LumaTextTertiaryBrush}" />
+                            <TextBlock controls:TrackColumnsGrid.Field="Album" Text="专辑" VerticalAlignment="Center" FontSize="11" Foreground="{ThemeResource LumaTextTertiaryBrush}" />
+                            <TextBlock controls:TrackColumnsGrid.Field="Duration" Text="时长" VerticalAlignment="Center" FontSize="11" Foreground="{ThemeResource LumaTextTertiaryBrush}" HorizontalAlignment="Right" />
+                        </controls:TrackColumnsGrid>
+                        <ListView x:Name="TrackList" Grid.Row="2" SelectionMode="Single" IsItemClickEnabled="True" ItemClick="TrackList_ItemClick" ItemTemplate="{StaticResource TrackTemplate}" ItemContainerStyle="{StaticResource TrackListItemStyle}" Padding="0" HorizontalContentAlignment="Stretch" Loaded="TrackList_Loaded" Unloaded="TrackList_Unloaded" SizeChanged="TrackList_SizeChanged" />
+                        <StackPanel x:Name="EmptyState" Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" MaxWidth="360"><controls:FilledIcon x:Name="EmptyIcon" Kind="Search" Foreground="{ThemeResource LumaTextTertiaryBrush}" FontSize="40" /><TextBlock x:Name="EmptyTitle" Text="搜索音乐" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" /><TextBlock x:Name="EmptyDescription" Text="输入歌曲或歌手" FontSize="12" Foreground="{ThemeResource LumaTextSecondaryBrush}" TextWrapping="Wrap" TextAlignment="Center" /></StackPanel>
+                        <ProgressBar x:Name="SearchAppendProgress" Grid.Row="3" Width="96" Height="2" IsIndeterminate="False" Visibility="Collapsed" HorizontalAlignment="Center" Margin="0,8,0,4" AutomationProperties.Name="正在加载更多歌曲" />
+                    </Grid>
+                    <ScrollViewer x:Name="CloudView" Visibility="Collapsed" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled" HorizontalContentAlignment="Stretch">
+                        <StackPanel x:Name="CloudContent" Margin="36,0,36,32" Spacing="24">
+                            <Grid ColumnSpacing="16"><Grid.ColumnDefinitions><ColumnDefinition Width="64" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <Grid><Border x:Name="CloudGuestBadge" CornerRadius="32" Background="{ThemeResource LumaCardPlaceholderBrush}"><controls:FilledIcon Kind="Person" FontSize="32" /></Border><PersonPicture x:Name="CloudAvatar" Width="64" Height="64" Visibility="Collapsed" /></Grid>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="5"><TextBlock x:Name="CloudTitle" Text="我的歌单" FontSize="30" FontWeight="Bold" TextTrimming="CharacterEllipsis" /><TextBlock x:Name="CloudSubtitle" Text="登录网易云音乐，随时听你的收藏" FontSize="13" Foreground="{ThemeResource LumaTextSecondaryBrush}" /></StackPanel>
+                                <Button x:Name="CloudAction" Grid.Column="2" Content="扫码登录" Click="CloudAction_Click" Style="{StaticResource AccentButtonStyle}" VerticalAlignment="Center" />
+                            </Grid>
+                            <InfoBar x:Name="CloudNotice" IsOpen="False" IsClosable="True" Severity="Warning" />
+                            <GridView x:Name="CloudPlaylistGrid" IsItemClickEnabled="True" ItemClick="PlaylistGrid_ItemClick" SelectionMode="None" ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch" Margin="-14,-4,-14,0" ItemContainerStyle="{StaticResource PlaylistCardStyle}" Loaded="PlaylistCards_Loaded" SizeChanged="PlaylistCards_SizeChanged">
+                                <GridView.ItemsPanel><ItemsPanelTemplate><ItemsWrapGrid Orientation="Horizontal" ItemWidth="188" /></ItemsPanelTemplate></GridView.ItemsPanel>
+                                <GridView.ItemTemplate><DataTemplate x:DataType="models:MusicPlaylist"><StackPanel Spacing="12"><Border SizeChanged="SquareArtwork_SizeChanged" Height="166" CornerRadius="14" Background="{ThemeResource LumaCardPlaceholderBrush}"><Grid><controls:FilledIcon Kind="Music" FontSize="38" Foreground="{ThemeResource LumaTextTertiaryBrush}" /><Image Source="{x:Bind ArtworkUrl}" Stretch="Fill" /></Grid></Border><TextBlock Text="{x:Bind Title}" FontWeight="SemiBold" FontSize="14" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" /><TextBlock Text="{x:Bind Subtitle}" FontSize="12" Foreground="{ThemeResource LumaTextSecondaryBrush}" MaxLines="1" TextTrimming="CharacterEllipsis" /></StackPanel></DataTemplate></GridView.ItemTemplate>
+                            </GridView>
+                            <StackPanel x:Name="CloudEmpty" HorizontalAlignment="Center" Margin="0,64,0,32" Spacing="16"><controls:FilledIcon Kind="Playlist" FontSize="48" Foreground="{ThemeResource LumaTextTertiaryBrush}" /><TextBlock x:Name="CloudEmptyText" Text="让喜欢的音乐，在这里相遇" FontSize="17" Foreground="{ThemeResource LumaTextSecondaryBrush}" /></StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                    <ScrollViewer x:Name="SettingsView" Visibility="Collapsed" Margin="28,0,28,28" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Top">
+                        <StackPanel x:Name="SettingsContent" Spacing="24" HorizontalAlignment="Stretch">
+                            <TextBlock x:Name="SettingsPageTitle" Text="设置" FontSize="32" FontWeight="Bold" />
+                            <StackPanel Spacing="12">
+                                <Border Background="{ThemeResource LumaSurfaceBrush}" BorderBrush="{ThemeResource LumaBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20,18">
+                                    <Grid ColumnSpacing="16">
+                                        <VisualStateManager.VisualStateGroups>
+                                            <VisualStateGroup>
+                                                <VisualState x:Name="CompactSettingsAccount">
+                                                    <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="0" /></VisualState.StateTriggers>
+                                                    <VisualState.Setters>
+                                                        <Setter Target="SettingsAccountActions.(Grid.Row)" Value="1" />
+                                                        <Setter Target="SettingsAccountActions.(Grid.Column)" Value="1" />
+                                                        <Setter Target="SettingsAccountActions.HorizontalAlignment" Value="Left" />
+                                                        <Setter Target="SettingsAccountActions.Margin" Value="0,12,0,0" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+                                                <VisualState x:Name="WideSettingsAccount">
+                                                    <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="1040" /></VisualState.StateTriggers>
+                                                    <VisualState.Setters>
+                                                        <Setter Target="SettingsAccountActions.(Grid.Row)" Value="0" />
+                                                        <Setter Target="SettingsAccountActions.(Grid.Column)" Value="2" />
+                                                        <Setter Target="SettingsAccountActions.HorizontalAlignment" Value="Right" />
+                                                        <Setter Target="SettingsAccountActions.Margin" Value="0" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+                                            </VisualStateGroup>
+                                        </VisualStateManager.VisualStateGroups>
+                                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <controls:FilledIcon Kind="Person" FontSize="20" VerticalAlignment="Center" Foreground="{ThemeResource LumaTextSecondaryBrush}" />
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4"><TextBlock Text="网易云音乐账号" FontSize="14" /><TextBlock x:Name="SettingsAccountLabel" Text="未登录" TextTrimming="CharacterEllipsis" FontSize="12" Foreground="{ThemeResource LumaTextSecondaryBrush}" /></StackPanel>
+                                        <StackPanel x:Name="SettingsAccountActions" Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,12,0,0">
+                                            <Button x:Name="SettingsAccountButton" Content="扫码登录" Click="Account_Click" VerticalAlignment="Center" />
+                                            <Button x:Name="LogoutButton" Content="退出登录" Click="Logout_Click" Visibility="Collapsed" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                                <Border Background="{ThemeResource LumaSurfaceBrush}" BorderBrush="{ThemeResource LumaBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20,18">
+                                    <Grid ColumnSpacing="16" MinHeight="40"><Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /><ColumnDefinition Width="180" /></Grid.ColumnDefinitions>
+                                        <controls:FilledIcon Kind="Palette" FontSize="20" VerticalAlignment="Center" Foreground="{ThemeResource LumaTextSecondaryBrush}" />
+                                        <TextBlock Grid.Column="1" Text="应用主题" VerticalAlignment="Center" FontSize="14" />
+                                        <ComboBox x:Name="ThemeSelector" Grid.Column="2" HorizontalAlignment="Stretch" VerticalAlignment="Center" SelectionChanged="ThemeSelector_SelectionChanged" AutomationProperties.Name="应用主题">
+                                            <ComboBoxItem Content="跟随系统" Tag="System" /><ComboBoxItem Content="浅色" Tag="Light" /><ComboBoxItem Content="深色" Tag="Dark" />
+                                        </ComboBox>
+                                    </Grid>
+                                </Border>
+                                <Border Background="{ThemeResource LumaSurfaceBrush}" BorderBrush="{ThemeResource LumaBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20,18">
+                                    <Grid ColumnSpacing="16" MinHeight="40"><Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /><ColumnDefinition Width="180" /></Grid.ColumnDefinitions>
+                                        <controls:FilledIcon Kind="Volume" FontSize="20" VerticalAlignment="Center" Foreground="{ThemeResource LumaTextSecondaryBrush}" />
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4"><TextBlock Text="播放音质" FontSize="14" /><TextBlock Text="按账号权限获取可用音质" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource LumaTextSecondaryBrush}" /></StackPanel>
+                                        <ComboBox x:Name="QualitySelector" Grid.Column="2" HorizontalAlignment="Stretch" VerticalAlignment="Center" SelectionChanged="QualitySelector_SelectionChanged" AutomationProperties.Name="播放音质"><ComboBoxItem Content="标准" Tag="standard" /><ComboBoxItem Content="较高" Tag="higher" /><ComboBoxItem Content="极高" Tag="exhigh" /><ComboBoxItem Content="无损" Tag="lossless" /><ComboBoxItem Content="Hi-Res" Tag="hires" /></ComboBox>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                            <Grid ColumnSpacing="16"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="Luma Music 1.0" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource LumaTextTertiaryBrush}" /><Button Grid.Column="1" Click="Shortcuts_Click" Content="键盘快捷键" /></Grid>
+                        </StackPanel>
+                    </ScrollViewer>
+                    <controls:LoadingSkeleton x:Name="PageSkeleton" Visibility="Collapsed" ContentInset="0,0,0,24" Margin="36,0,36,20" />
+                </Grid>
+                <Border x:Name="Inspector" Padding="36,0,36,20" Background="Transparent" Visibility="Collapsed">
+                    <Grid RowSpacing="20"><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                        <Grid ColumnSpacing="16"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="36" /></Grid.ColumnDefinitions>
+                            <StackPanel Spacing="6"><TextBlock x:Name="QueuePageTitle" Text="待播清单" FontSize="28" FontWeight="Bold" /><TextBlock x:Name="QueueCountLabel" Text="0 首歌曲" FontSize="12" Foreground="{ThemeResource LumaTextSecondaryBrush}" /></StackPanel>
+                            <Button Grid.Column="1" Style="{StaticResource IconButton}" Click="CloseInspector_Click" VerticalAlignment="Top" ToolTipService.ToolTip="关闭待播清单" AutomationProperties.Name="关闭待播清单"><controls:FilledIcon Kind="Close" FontSize="16" /></Button>
+                        </Grid>
+                        <Grid Grid.Row="1">
+                            <ListView x:Name="QueueList" SelectionMode="Single" IsItemClickEnabled="True" ItemClick="QueueList_ItemClick" ItemContainerStyle="{StaticResource TrackListItemStyle}" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="待播歌曲">
+                                <ListView.ItemTemplate><DataTemplate x:DataType="models:Track"><Grid Height="72" Padding="12,0" ColumnSpacing="16"><Grid.ColumnDefinitions><ColumnDefinition Width="44" /><ColumnDefinition Width="*" /><ColumnDefinition Width="48" /><ColumnDefinition Width="36" /></Grid.ColumnDefinitions>
+                                    <Border Width="44" Height="44" CornerRadius="8" Background="{ThemeResource LumaCardPlaceholderBrush}" VerticalAlignment="Center"><Grid><controls:FilledIcon Kind="Music" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{ThemeResource LumaTextTertiaryBrush}" /><Image Source="{x:Bind ArtworkUrl}" Stretch="Fill" /></Grid></Border>
+                                    <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center"><TextBlock Text="{x:Bind Title}" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" /><TextBlock Text="{x:Bind Artist}" FontSize="12" Foreground="{ThemeResource LumaTextSecondaryBrush}" TextTrimming="CharacterEllipsis" /></StackPanel>
+                                    <TextBlock Grid.Column="2" Text="{x:Bind DisplayDuration}" FontSize="12" TextAlignment="Right" VerticalAlignment="Center" Foreground="{ThemeResource LumaTextSecondaryBrush}" />
+                                    <Button Grid.Column="3" Style="{StaticResource IconButton}" VerticalAlignment="Center" Tag="{x:Bind}" Click="RemoveQueue_Click" AutomationProperties.Name="移出待播清单" ToolTipService.ToolTip="移出待播清单"><controls:FilledIcon Kind="Close" FontSize="12" Foreground="{ThemeResource LumaTextTertiaryBrush}" /></Button>
+                                </Grid></DataTemplate></ListView.ItemTemplate>
+                            </ListView>
+                            <TextBlock x:Name="QueueEmptyState" Text="队列为空" FontSize="16" Foreground="{ThemeResource LumaTextTertiaryBrush}" TextWrapping="Wrap" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed" />
+                        </Grid>
+                        <!-- Retained only for legacy lyric parsing/state references; lyrics open in NowPlaying. -->
+                        <Grid Visibility="Collapsed" IsHitTestVisible="False"><ToggleButton x:Name="LyricsTab" /><ToggleButton x:Name="QueueTab" /><ScrollViewer x:Name="LyricsScroller"><StackPanel x:Name="LyricsPanel" /></ScrollViewer></Grid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+        <Border x:Name="PlayerBar" Grid.Row="2" Grid.ColumnSpan="2" BorderThickness="0,1,0,0" BorderBrush="{ThemeResource LumaBorderBrush}" Background="{ThemeResource LumaPlayerBrush}">
+            <Border.Resources>
+                <ResourceDictionary>
+                    <!-- These keys are consumed by WinUI 2.6.4's DefaultSliderStyle. The
+                         native pointer/pressed/focus states remain intact with a slimmer rail. -->
+                    <x:Double x:Key="SliderTrackThemeHeight">3</x:Double>
+                    <x:Double x:Key="SliderHorizontalHeight">24</x:Double>
+                    <x:Double x:Key="SliderHorizontalThumbWidth">10</x:Double>
+                    <x:Double x:Key="SliderHorizontalThumbHeight">10</x:Double>
+                    <x:Double x:Key="SliderInnerThumbWidth">8</x:Double>
+                    <x:Double x:Key="SliderInnerThumbHeight">8</x:Double>
+                    <SolidColorBrush x:Key="SliderOuterThumbBackground" Color="Transparent" />
+                    <SolidColorBrush x:Key="SliderThumbBorderBrush" Color="Transparent" />
+                    <ResourceDictionary.ThemeDictionaries>
+                        <ResourceDictionary x:Key="Light">
+                            <SolidColorBrush x:Key="SliderTrackFill" Color="#26000000" /><SolidColorBrush x:Key="SliderTrackFillPointerOver" Color="#36000000" /><SolidColorBrush x:Key="SliderTrackFillPressed" Color="#42000000" />
+                            <SolidColorBrush x:Key="SliderTrackValueFill" Color="#4D4D55" /><SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#242429" /><SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#393941" />
+                            <SolidColorBrush x:Key="SliderThumbBackground" Color="#4D4D55" /><SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#242429" /><SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#393941" />
+                        </ResourceDictionary>
+                        <ResourceDictionary x:Key="Dark">
+                            <SolidColorBrush x:Key="SliderTrackFill" Color="#36FFFFFF" /><SolidColorBrush x:Key="SliderTrackFillPointerOver" Color="#4AFFFFFF" /><SolidColorBrush x:Key="SliderTrackFillPressed" Color="#54FFFFFF" />
+                            <SolidColorBrush x:Key="SliderTrackValueFill" Color="#DADAE0" /><SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#FFFFFF" /><SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#E7E7EC" />
+                            <SolidColorBrush x:Key="SliderThumbBackground" Color="#DADAE0" /><SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#FFFFFF" /><SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#E7E7EC" />
+                        </ResourceDictionary>
+                        <ResourceDictionary x:Key="Default">
+                            <SolidColorBrush x:Key="SliderTrackFill" Color="#36FFFFFF" /><SolidColorBrush x:Key="SliderTrackFillPointerOver" Color="#4AFFFFFF" /><SolidColorBrush x:Key="SliderTrackFillPressed" Color="#54FFFFFF" />
+                            <SolidColorBrush x:Key="SliderTrackValueFill" Color="#DADAE0" /><SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#FFFFFF" /><SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#E7E7EC" />
+                            <SolidColorBrush x:Key="SliderThumbBackground" Color="#DADAE0" /><SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#FFFFFF" /><SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#E7E7EC" />
+                        </ResourceDictionary>
+                    </ResourceDictionary.ThemeDictionaries>
+                </ResourceDictionary>
+            </Border.Resources>
+            <Grid x:Name="PlayerLayout" Margin="16,0" ColumnSpacing="16">
+                <Grid.ColumnDefinitions><ColumnDefinition x:Name="PlayerInfoColumn" Width="260" /><ColumnDefinition x:Name="PlayerTransportColumn" Width="*" MinWidth="202" /><ColumnDefinition x:Name="PlayerToolsColumn" Width="260" /></Grid.ColumnDefinitions>
+                <Grid VerticalAlignment="Center" ColumnSpacing="4">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="32" /></Grid.ColumnDefinitions>
+                    <Button x:Name="PlayerInfoButton" Click="ToggleLyrics_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Background="Transparent" BorderThickness="0" CornerRadius="8" Padding="6" AutomationProperties.Name="展开正在播放的歌词" ToolTipService.ToolTip="展开歌词">
+                        <Grid ColumnSpacing="10"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <Border x:Name="PlayerCoverBorder" Width="52" Height="52" CornerRadius="6" Background="{ThemeResource LumaCardPlaceholderBrush}"><Grid><controls:FilledIcon Kind="Music" Foreground="{ThemeResource LumaTextTertiaryBrush}" FontSize="23" /><Image x:Name="PlayerArtwork" Stretch="Fill" /></Grid></Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4"><TextBlock x:Name="PlayerTitle" Text="未在播放" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" /><TextBlock x:Name="PlayerArtist" Text="选择歌曲" Foreground="{ThemeResource LumaTextSecondaryBrush}" FontSize="11" TextTrimming="CharacterEllipsis" /></StackPanel>
+                        </Grid>
+                    </Button>
+                    <Button x:Name="PlayerFavorite" Grid.Column="1" Style="{StaticResource PlayerIconButton}" VerticalAlignment="Center" Click="PlayerFavorite_Click" IsEnabled="False" ToolTipService.ToolTip="收藏当前歌曲" AutomationProperties.Name="收藏当前歌曲"><controls:FilledIcon x:Name="PlayerFavoriteIcon" Kind="HeartOff" FontSize="17" Foreground="{ThemeResource LumaTextSecondaryBrush}" /></Button>
+                </Grid>
+                <Grid x:Name="PlayerTransport" Grid.Column="1" MaxWidth="640" VerticalAlignment="Center" RowSpacing="2">
+                    <Grid.RowDefinitions><RowDefinition Height="40" /><RowDefinition Height="24" /></Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+                        <Button x:Name="ShuffleButton" Style="{StaticResource PlayerIconButton}" Click="Shuffle_Click" ToolTipService.ToolTip="随机播放" AutomationProperties.Name="随机播放"><controls:FilledIcon x:Name="ShuffleIcon" Kind="Shuffle" FontSize="16" Foreground="{ThemeResource LumaTextSecondaryBrush}" /></Button>
+                        <Button Style="{StaticResource PlayerIconButton}" Click="Previous_Click" ToolTipService.ToolTip="上一首" AutomationProperties.Name="上一首"><controls:FilledIcon Kind="Previous" FontSize="21" /></Button>
+                        <Button x:Name="PlayPauseButton" Style="{StaticResource DefaultButtonStyle}" Width="34" Height="34" CornerRadius="17" Padding="0" BorderThickness="0" Click="PlayPause_Click" ToolTipService.ToolTip="播放 / 暂停" AutomationProperties.Name="播放或暂停">
+                            <Button.Resources>
+                                <ResourceDictionary><ResourceDictionary.ThemeDictionaries>
+                                    <ResourceDictionary x:Key="Light">
+                                        <SolidColorBrush x:Key="ButtonBackground" Color="#242429" /><SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#3D3D45" /><SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#56565F" />
+                                        <SolidColorBrush x:Key="ButtonForeground" Color="#FFFFFF" /><SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFF" /><SolidColorBrush x:Key="ButtonForegroundPressed" Color="#EAEAF0" />
+                                    </ResourceDictionary>
+                                    <ResourceDictionary x:Key="Dark">
+                                        <SolidColorBrush x:Key="ButtonBackground" Color="#F5F5F7" /><SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#FFFFFF" /><SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#D7D7DE" />
+                                        <SolidColorBrush x:Key="ButtonForeground" Color="#151518" /><SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#151518" /><SolidColorBrush x:Key="ButtonForegroundPressed" Color="#303038" />
+                                    </ResourceDictionary>
+                                    <ResourceDictionary x:Key="Default">
+                                        <SolidColorBrush x:Key="ButtonBackground" Color="#F5F5F7" /><SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#FFFFFF" /><SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#D7D7DE" />
+                                        <SolidColorBrush x:Key="ButtonForeground" Color="#151518" /><SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#151518" /><SolidColorBrush x:Key="ButtonForegroundPressed" Color="#303038" />
+                                    </ResourceDictionary>
+                                </ResourceDictionary.ThemeDictionaries></ResourceDictionary>
+                            </Button.Resources>
+                            <controls:FilledIcon x:Name="PlayPauseIcon" Kind="Play" FontSize="20" />
+                        </Button>
+                        <Button Style="{StaticResource PlayerIconButton}" Click="Next_Click" ToolTipService.ToolTip="下一首" AutomationProperties.Name="下一首"><controls:FilledIcon Kind="Next" FontSize="21" /></Button>
+                        <Button x:Name="RepeatButton" Style="{StaticResource PlayerIconButton}" Click="Repeat_Click" ToolTipService.ToolTip="循环模式" AutomationProperties.Name="循环模式"><controls:FilledIcon x:Name="RepeatIcon" Kind="Repeat" FontSize="16" Foreground="{ThemeResource LumaTextSecondaryBrush}" /></Button>
+                    </StackPanel>
+                    <Grid Grid.Row="1" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="42" /><ColumnDefinition Width="*" /><ColumnDefinition Width="42" /></Grid.ColumnDefinitions>
+                        <TextBlock x:Name="PositionLabel" Text="0:00" FontSize="10" Foreground="{ThemeResource LumaTextSecondaryBrush}" VerticalAlignment="Center" TextAlignment="Right" />
+                        <Slider x:Name="SeekSlider" Grid.Column="1" Minimum="0" Maximum="1" ValueChanged="SeekSlider_ValueChanged" IsEnabled="False" IsThumbToolTipEnabled="False" VerticalAlignment="Center" MinHeight="24" AutomationProperties.Name="播放进度" />
+                        <TextBlock x:Name="DurationLabel" Grid.Column="2" Text="0:00" FontSize="10" Foreground="{ThemeResource LumaTextSecondaryBrush}" VerticalAlignment="Center" />
+                    </Grid>
+                </Grid>
+                <StackPanel x:Name="PlayerTools" Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <TextBlock x:Name="PreviewBadge" Text="试听" MaxWidth="36" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource LumaTextTertiaryBrush}" FontSize="10" VerticalAlignment="Center" Visibility="Collapsed" />
+                    <Button x:Name="QueueToggleButton" Style="{StaticResource PlayerIconButton}" VerticalAlignment="Center" Click="ToggleQueue_Click" ToolTipService.ToolTip="待播清单" AutomationProperties.Name="显示播放队列"><controls:FilledIcon Kind="Queue" FontSize="18" /></Button>
+                    <Button Style="{StaticResource PlayerIconButton}" VerticalAlignment="Center" Click="Volume_Click" ToolTipService.ToolTip="静音 / 恢复音量" AutomationProperties.Name="静音"><controls:FilledIcon x:Name="VolumeIcon" Kind="Volume" FontSize="18" Foreground="{ThemeResource LumaTextSecondaryBrush}" /></Button>
+                    <Slider x:Name="VolumeSlider" Width="88" MinWidth="0" Minimum="0" Maximum="100" Value="70" StepFrequency="1" SmallChange="1" LargeChange="5" ValueChanged="VolumeSlider_ValueChanged" VerticalAlignment="Center" MinHeight="24" AutomationProperties.Name="音量" />
+                </StackPanel>
+            </Grid>
+        </Border>
+        <views:NowPlayingView x:Name="NowPlaying" Grid.RowSpan="3" Grid.ColumnSpan="2" Visibility="Collapsed" />
+        <Border x:Name="Toast" Grid.Row="1" Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,20" Background="{ThemeResource LumaToastBackgroundBrush}" CornerRadius="10" Padding="20,12" Visibility="Collapsed"><TextBlock x:Name="ToastText" Foreground="{ThemeResource LumaToastForegroundBrush}" FontSize="12" /></Border>
     </Grid>
 </Window>

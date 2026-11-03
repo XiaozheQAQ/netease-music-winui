@@ -1,10 +1,10 @@
 {
   "profiles": {
-    "winuitest (Package)": {
-      "commandName": "MsixPackage"
-    },
-    "winuitest (Unpackaged)": {
+    "Luma Music (Unpackaged)": {
       "commandName": "Project"
+    },
+    "Luma Music (MSIX)": {
+      "commandName": "MsixPackage"
     }
   }
 }

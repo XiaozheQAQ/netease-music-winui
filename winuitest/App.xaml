@@ -2,15 +2,136 @@
 <Application
     x:Class="winuitest.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:winuitest">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
-                <!-- Other merged dictionaries here -->
             </ResourceDictionary.MergedDictionaries>
-            <!-- Other app resources here -->
+            <!-- RequestedTheme stays unset so Windows chooses the initial app theme.
+                 View elements consume these keys with ThemeResource for live updates. -->
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <Color x:Key="SystemAccentColor">#D83B5A</Color>
+                    <Color x:Key="SystemAccentColorLight1">#E95873</Color>
+                    <Color x:Key="SystemAccentColorLight2">#F1889D</Color>
+                    <Color x:Key="SystemAccentColorLight3">#F8C4D0</Color>
+                    <Color x:Key="SystemAccentColorDark1">#C52D4D</Color>
+                    <Color x:Key="SystemAccentColorDark2">#A5223F</Color>
+                    <Color x:Key="SystemAccentColorDark3">#7E1B32</Color>
+                    <Color x:Key="LumaHeroStartColor">#F8E8E7</Color>
+                    <Color x:Key="LumaHeroMidColor">#EDD7DC</Color>
+                    <Color x:Key="LumaHeroEndColor">#E0D9EA</Color>
+                    <Color x:Key="LumaLyricsStartColor">#B2FCF8F8</Color>
+                    <Color x:Key="LumaLyricsMidColor">#8CEEE7EF</Color>
+                    <Color x:Key="LumaLyricsEndColor">#80F8ECEC</Color>
+                    <SolidColorBrush x:Key="LumaWindowBrush" Color="Transparent" />
+                    <SolidColorBrush x:Key="LumaSurfaceBrush" Color="#8AFFFFFF" />
+                    <SolidColorBrush x:Key="LumaSidebarBrush" Color="#24FFFFFF" />
+                    <SolidColorBrush x:Key="LumaPlayerBrush" Color="#DCF9F9FA" />
+                    <SolidColorBrush x:Key="LumaInspectorBrush" Color="#E6F8F8FA" />
+                    <SolidColorBrush x:Key="LumaTextPrimaryBrush" Color="#242429" />
+                    <SolidColorBrush x:Key="LumaTextSecondaryBrush" Color="#686870" />
+                    <SolidColorBrush x:Key="LumaTextTertiaryBrush" Color="#85858D" />
+                    <SolidColorBrush x:Key="LumaAccentBrush" Color="#D83B5A" />
+                    <SolidColorBrush x:Key="LumaAccentTextBrush" Color="#C52D4D" />
+                    <SolidColorBrush x:Key="LumaOnAccentBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="LumaCardPlaceholderBrush" Color="#72E5E5EA" />
+                    <SolidColorBrush x:Key="LumaBorderBrush" Color="#20000000" />
+                    <SolidColorBrush x:Key="LumaSkeletonBrush" Color="#16000000" />
+                    <SolidColorBrush x:Key="LumaToastBackgroundBrush" Color="#EF302734" />
+                    <SolidColorBrush x:Key="LumaToastForegroundBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="LumaLyricMutedBrush" Color="#9A8C9B" />
+                    <SolidColorBrush x:Key="LumaLyricActiveBrush" Color="#302A35" />
+                    <SolidColorBrush x:Key="LumaLyricCompletedBrush" Color="#C24264" />
+                    <SolidColorBrush x:Key="LumaLyricCurrentBrush" Color="#D64A70" />
+                    <LinearGradientBrush x:Key="LumaLyricsBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="{StaticResource LumaLyricsStartColor}" Offset="0" />
+                        <GradientStop Color="{StaticResource LumaLyricsMidColor}" Offset="0.58" />
+                        <GradientStop Color="{StaticResource LumaLyricsEndColor}" Offset="1" />
+                    </LinearGradientBrush>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <Color x:Key="SystemAccentColor">#F57891</Color>
+                    <Color x:Key="SystemAccentColorLight1">#F795A9</Color>
+                    <Color x:Key="SystemAccentColorLight2">#FBB8C5</Color>
+                    <Color x:Key="SystemAccentColorLight3">#FDDCE3</Color>
+                    <Color x:Key="SystemAccentColorDark1">#DF5F7B</Color>
+                    <Color x:Key="SystemAccentColorDark2">#BD4864</Color>
+                    <Color x:Key="SystemAccentColorDark3">#99364F</Color>
+                    <Color x:Key="LumaHeroStartColor">#4C333B</Color>
+                    <Color x:Key="LumaHeroMidColor">#3D303D</Color>
+                    <Color x:Key="LumaHeroEndColor">#302D3C</Color>
+                    <Color x:Key="LumaLyricsStartColor">#C3231E29</Color>
+                    <Color x:Key="LumaLyricsMidColor">#B32C2234</Color>
+                    <Color x:Key="LumaLyricsEndColor">#A627202C</Color>
+                    <SolidColorBrush x:Key="LumaWindowBrush" Color="Transparent" />
+                    <SolidColorBrush x:Key="LumaSurfaceBrush" Color="#16FFFFFF" />
+                    <SolidColorBrush x:Key="LumaSidebarBrush" Color="#08FFFFFF" />
+                    <SolidColorBrush x:Key="LumaPlayerBrush" Color="#E0222227" />
+                    <SolidColorBrush x:Key="LumaInspectorBrush" Color="#E029292F" />
+                    <SolidColorBrush x:Key="LumaTextPrimaryBrush" Color="#F5F5F7" />
+                    <SolidColorBrush x:Key="LumaTextSecondaryBrush" Color="#C3C3CB" />
+                    <SolidColorBrush x:Key="LumaTextTertiaryBrush" Color="#9999A5" />
+                    <SolidColorBrush x:Key="LumaAccentBrush" Color="#F57891" />
+                    <SolidColorBrush x:Key="LumaAccentTextBrush" Color="#FF9DB1" />
+                    <SolidColorBrush x:Key="LumaOnAccentBrush" Color="#2D0C17" />
+                    <SolidColorBrush x:Key="LumaCardPlaceholderBrush" Color="#783D3D46" />
+                    <SolidColorBrush x:Key="LumaBorderBrush" Color="#20FFFFFF" />
+                    <SolidColorBrush x:Key="LumaSkeletonBrush" Color="#18FFFFFF" />
+                    <SolidColorBrush x:Key="LumaToastBackgroundBrush" Color="#F4E8DEE9" />
+                    <SolidColorBrush x:Key="LumaToastForegroundBrush" Color="#302333" />
+                    <SolidColorBrush x:Key="LumaLyricMutedBrush" Color="#A899B4" />
+                    <SolidColorBrush x:Key="LumaLyricActiveBrush" Color="#FBF5FF" />
+                    <SolidColorBrush x:Key="LumaLyricCompletedBrush" Color="#F4A5BA" />
+                    <SolidColorBrush x:Key="LumaLyricCurrentBrush" Color="#FF799E" />
+                    <LinearGradientBrush x:Key="LumaLyricsBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="{StaticResource LumaLyricsStartColor}" Offset="0" />
+                        <GradientStop Color="{StaticResource LumaLyricsMidColor}" Offset="0.58" />
+                        <GradientStop Color="{StaticResource LumaLyricsEndColor}" Offset="1" />
+                    </LinearGradientBrush>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Default">
+                    <Color x:Key="SystemAccentColor">#F57891</Color>
+                    <Color x:Key="SystemAccentColorLight1">#F795A9</Color>
+                    <Color x:Key="SystemAccentColorLight2">#FBB8C5</Color>
+                    <Color x:Key="SystemAccentColorLight3">#FDDCE3</Color>
+                    <Color x:Key="SystemAccentColorDark1">#DF5F7B</Color>
+                    <Color x:Key="SystemAccentColorDark2">#BD4864</Color>
+                    <Color x:Key="SystemAccentColorDark3">#99364F</Color>
+                    <Color x:Key="LumaHeroStartColor">#4C333B</Color>
+                    <Color x:Key="LumaHeroMidColor">#3D303D</Color>
+                    <Color x:Key="LumaHeroEndColor">#302D3C</Color>
+                    <Color x:Key="LumaLyricsStartColor">#C3231E29</Color>
+                    <Color x:Key="LumaLyricsMidColor">#B32C2234</Color>
+                    <Color x:Key="LumaLyricsEndColor">#A627202C</Color>
+                    <SolidColorBrush x:Key="LumaWindowBrush" Color="Transparent" />
+                    <SolidColorBrush x:Key="LumaSurfaceBrush" Color="#16FFFFFF" />
+                    <SolidColorBrush x:Key="LumaSidebarBrush" Color="#08FFFFFF" />
+                    <SolidColorBrush x:Key="LumaPlayerBrush" Color="#E0222227" />
+                    <SolidColorBrush x:Key="LumaInspectorBrush" Color="#E029292F" />
+                    <SolidColorBrush x:Key="LumaTextPrimaryBrush" Color="#F5F5F7" />
+                    <SolidColorBrush x:Key="LumaTextSecondaryBrush" Color="#C3C3CB" />
+                    <SolidColorBrush x:Key="LumaTextTertiaryBrush" Color="#9999A5" />
+                    <SolidColorBrush x:Key="LumaAccentBrush" Color="#F57891" />
+                    <SolidColorBrush x:Key="LumaAccentTextBrush" Color="#FF9DB1" />
+                    <SolidColorBrush x:Key="LumaOnAccentBrush" Color="#2D0C17" />
+                    <SolidColorBrush x:Key="LumaCardPlaceholderBrush" Color="#783D3D46" />
+                    <SolidColorBrush x:Key="LumaBorderBrush" Color="#20FFFFFF" />
+                    <SolidColorBrush x:Key="LumaSkeletonBrush" Color="#18FFFFFF" />
+                    <SolidColorBrush x:Key="LumaToastBackgroundBrush" Color="#F4E8DEE9" />
+                    <SolidColorBrush x:Key="LumaToastForegroundBrush" Color="#302333" />
+                    <SolidColorBrush x:Key="LumaLyricMutedBrush" Color="#A899B4" />
+                    <SolidColorBrush x:Key="LumaLyricActiveBrush" Color="#FBF5FF" />
+                    <SolidColorBrush x:Key="LumaLyricCompletedBrush" Color="#F4A5BA" />
+                    <SolidColorBrush x:Key="LumaLyricCurrentBrush" Color="#FF799E" />
+                    <LinearGradientBrush x:Key="LumaLyricsBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="{StaticResource LumaLyricsStartColor}" Offset="0" />
+                        <GradientStop Color="{StaticResource LumaLyricsMidColor}" Offset="0.58" />
+                        <GradientStop Color="{StaticResource LumaLyricsEndColor}" Offset="1" />
+                    </LinearGradientBrush>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

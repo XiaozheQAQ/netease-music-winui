@@ -284,6 +284,26 @@ FakesAssemblies/
 # Node.js Tools for Visual Studio
 .ntvs_analysis.dat
 node_modules/
+winuitest/MusicSource/runtime/
+.build/
+
+# Local accounts, signing keys and release output
+.env
+.env.*
+!.env.example
+account.dat
+library.json
+cookies.txt
+cookies.json
+session.json
+*.pem
+*.key
+*.p12
+*.snk
+*.msix
+*.msixbundle
+*.msixupload
+*.cer
 
 # Visual Studio 6 build log
 *.plg

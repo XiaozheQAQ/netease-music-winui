@@ -27,6 +27,16 @@ namespace winuitest
     public partial class App : Application
     {
         private Window? _window;
+        // Allows development validation in a separate profile without changing
+        // the listener's active account, queue or saved playback position.
+        internal static string? DataDirectory
+        {
+            get
+            {
+                var path = Environment.GetEnvironmentVariable("LUMA_DATA_DIRECTORY");
+                return string.IsNullOrWhiteSpace(path) ? null : path;
+            }
+        }
 
         /// <summary>
         /// Initializes the singleton application object.  This is the first line of authored code
@@ -34,7 +44,16 @@ namespace winuitest
         /// </summary>
         public App()
         {
+            UnhandledException += (_, e) => WriteStartupDiagnostic(e.Exception);
             InitializeComponent();
+        }
+
+        private static void WriteStartupDiagnostic(Exception error)
+        {
+            // Opt-in development diagnostics; never record music responses or account credentials.
+            var path = Environment.GetEnvironmentVariable("LUMA_STARTUP_DIAGNOSTIC");
+            if (string.IsNullOrWhiteSpace(path)) return;
+            try { File.WriteAllText(path, error.ToString()); } catch { }
         }
 
         /// <summary>
@@ -43,8 +62,12 @@ namespace winuitest
         /// <param name="args">Details about the launch request and process.</param>
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
-            _window = new MainWindow();
-            _window.Activate();
+            try
+            {
+                _window = new MainWindow();
+                _window.Activate();
+            }
+            catch (Exception error) { WriteStartupDiagnostic(error); throw; }
         }
     }
 }

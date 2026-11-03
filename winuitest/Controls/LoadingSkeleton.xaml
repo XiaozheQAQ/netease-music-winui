@@ -1,0 +1,53 @@
+<UserControl
+    x:Class="winuitest.Controls.LoadingSkeleton"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="Transparent" IsHitTestVisible="False" IsTabStop="False"
+    AutomationProperties.AccessibilityView="Raw"
+    Loaded="Skeleton_Loaded" Unloaded="Skeleton_Unloaded">
+    <UserControl.Resources>
+        <Style x:Key="SkeletonBlock" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource LumaSkeletonBrush}" />
+            <Setter Property="CornerRadius" Value="5" />
+        </Style>
+    </UserControl.Resources>
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden"
+                  HorizontalScrollMode="Disabled" VerticalScrollMode="Disabled"
+                  HorizontalContentAlignment="Stretch" IsTabStop="False">
+        <Grid x:Name="SkeletonCanvas" Margin="{x:Bind ContentInset, Mode=OneWay}" Opacity="0.85">
+            <StackPanel x:Name="TracksShape" Spacing="24">
+                <Grid ColumnSpacing="24" MinHeight="136">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="136" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <Border Style="{StaticResource SkeletonBlock}" Height="136" CornerRadius="12" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="14">
+                        <Border Style="{StaticResource SkeletonBlock}" Height="28" Width="220" MaxWidth="280" HorizontalAlignment="Left" />
+                        <Border Style="{StaticResource SkeletonBlock}" Height="12" Width="160" HorizontalAlignment="Left" />
+                        <Border Style="{StaticResource SkeletonBlock}" Height="34" Width="98" HorizontalAlignment="Left" Margin="0,2,0,0" CornerRadius="7" />
+                    </StackPanel>
+                </Grid>
+                <Border Style="{StaticResource SkeletonBlock}" Height="1" Opacity="0.55" />
+                <StackPanel x:Name="TrackRows" Spacing="4" />
+            </StackPanel>
+            <StackPanel x:Name="DiscoveryShape" Visibility="Collapsed" Spacing="24">
+                <StackPanel Spacing="11">
+                    <Border Style="{StaticResource SkeletonBlock}" Height="11" Width="112" HorizontalAlignment="Left" />
+                    <Border Style="{StaticResource SkeletonBlock}" Height="32" Width="170" HorizontalAlignment="Left" />
+                </StackPanel>
+                <Border Style="{StaticResource SkeletonBlock}" Height="220" CornerRadius="16" />
+                <Border Style="{StaticResource SkeletonBlock}" Height="20" Width="110" HorizontalAlignment="Left" />
+                <Grid x:Name="DiscoveryCards" Margin="-14,-4,-14,0" SizeChanged="Cards_SizeChanged" />
+            </StackPanel>
+            <StackPanel x:Name="PlaylistsShape" Visibility="Collapsed" Spacing="24">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="64" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <Border Style="{StaticResource SkeletonBlock}" Height="64" CornerRadius="32" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="12">
+                        <Border Style="{StaticResource SkeletonBlock}" Height="26" Width="200" HorizontalAlignment="Left" />
+                        <Border Style="{StaticResource SkeletonBlock}" Height="12" Width="132" HorizontalAlignment="Left" />
+                    </StackPanel>
+                </Grid>
+                <Grid x:Name="PlaylistCards" Margin="-14,-4,-14,0" SizeChanged="Cards_SizeChanged" />
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

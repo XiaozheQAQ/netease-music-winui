@@ -4,17 +4,47 @@
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>winuitest</RootNamespace>
+    <AssemblyName>LumaMusic</AssemblyName>
+    <Product>Luma Music</Product>
+    <Company>XiaozheQAQ</Company>
+    <Copyright>Copyright (c) 2026 XiaozheQAQ</Copyright>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x86;x64;ARM64</Platforms>
+    <Platform Condition="'$(Platform)' == '' Or '$(Platform)' == 'AnyCPU'">x64</Platform>
     <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
     <PublishProfile>win-$(Platform).pubxml</PublishProfile>
     <UseWinUI>true</UseWinUI>
     <WinUISDKReferences>false</WinUISDKReferences>
     <EnableMsixTooling>true</EnableMsixTooling>
     <Nullable>enable</Nullable>
+    <WindowsPackageType Condition="'$(WindowsPackageType)' == ''">None</WindowsPackageType>
+    <WindowsAppSDKSelfContained Condition="'$(WindowsPackageType)' == 'None'">true</WindowsAppSDKSelfContained>
+    <AssemblyTitle>Luma Music</AssemblyTitle>
+    <ApplicationIcon>Assets\Luma.ico</ApplicationIcon>
+    <Description>原生 WinUI 3 网易云音乐播放器</Description>
+    <DefaultItemExcludes>$(DefaultItemExcludes);MusicSource\node_modules\**;MusicSource\runtime\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="..\LICENSE.txt" Link="LICENSE.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+    <Content Include="Assets\Fonts\FluentSystemIcons-Filled.ttf;Assets\Fonts\LICENSE-FluentSystemIcons.txt;Assets\Fonts\PROVENANCE.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Assets\Fonts\ResourceHanRoundedCN-Heavy.ttf;Assets\Fonts\ResourceHanRoundedCN-Bold.ttf;Assets\Fonts\LICENSE-ResourceHanRounded.txt;Assets\Fonts\PROVENANCE-ResourceHanRounded.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Assets\Luma.ico;Assets\Luma.png;Assets\Luma.svg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
     <Content Include="Assets\SplashScreen.scale-200.png" />
     <Content Include="Assets\LockScreenLogo.scale-200.png" />
     <Content Include="Assets\Square150x150Logo.scale-200.png" />
@@ -22,7 +52,26 @@
     <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
     <Content Include="Assets\StoreLogo.png" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
+    <Content Update="Assets\*.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
+
+  <!-- None files are copied and included in MSIX payloads, but are not indexed as
+       WinUI PRI resources. npm file names are not Windows resource qualifiers. -->
+  <ItemGroup>
+    <None Remove="MusicSource\**\*" />
+    <None Include="MusicSource\service.cjs;MusicSource\bridge.cjs;MusicSource\package*.json;MusicSource\node_modules\**\*;MusicSource\runtime\node.exe;MusicSource\runtime\NODE-LICENSE.txt;MusicSource\runtime\version.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+
+  <Target Name="CheckMusicSourceDependencies" BeforeTargets="BeforeBuild"
+          Condition="!Exists('$(MSBuildProjectDirectory)\MusicSource\node_modules\@neteasecloudmusicapienhanced\api\package.json')">
+    <Warning Text="音源依赖尚未准备。请在解决方案目录执行 powershell -ExecutionPolicy Bypass -File scripts\prepare-source.ps1。" />
+  </Target>
 
   <ItemGroup>
     <Manifest Include="$(ApplicationManifest)" />
@@ -37,6 +86,7 @@
     <ProjectCapability Include="Msix" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.Graphics.Win2D" Version="1.4.0" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2957" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.6.4" />
   </ItemGroup>
@@ -54,7 +104,6 @@
   <PropertyGroup>
     <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
-    <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
-    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
+    <PublishTrimmed>False</PublishTrimmed>
   </PropertyGroup>
 </Project>

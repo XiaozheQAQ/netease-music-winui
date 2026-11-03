@@ -1,0 +1,37 @@
+Resource Han Rounded CN 0.990 (static TrueType)
+
+Author: Cyano Hao; derived from Adobe Source Han Sans.
+Project: https://github.com/CyanoHao/Resource-Han-Rounded
+Pinned release: https://github.com/CyanoHao/Resource-Han-Rounded/releases/tag/v0.990
+Original archive: https://github.com/CyanoHao/Resource-Han-Rounded/releases/download/v0.990/RHR-CN-0.990.7z
+License source: https://raw.githubusercontent.com/CyanoHao/Resource-Han-Rounded/v0.990/LICENSE.txt
+License: SIL Open Font License 1.1; see LICENSE-ResourceHanRounded.txt.
+Copyright 2018-2019 Cyano Hao; Copyright 2014, 2015, 2018 Adobe.
+
+The following original archive members are bundled without modification or subsetting:
+
+ResourceHanRoundedCN-Heavy.ttf
+  Size: 13,688,972 bytes
+  Family: Resource Han Rounded CN
+  Face: Heavy (OpenType weight 900 / Windows Black)
+  SHA-256: dfc757d9c5ae597cac15b12a51a1cee07af500cc8cf7439b243e1bb94b2b1f83
+
+ResourceHanRoundedCN-Bold.ttf
+  Size: 13,978,508 bytes
+  Family: Resource Han Rounded CN
+  Face: Bold (OpenType weight 700)
+  SHA-256: f713907a21a10701cd68a7ce3e345ccdce46c789e1809d65ace54e095d7107c3
+
+Verified directly with Windows GlyphTypeface on 2026-11-01:
+  Both faces expose 31,032 glyphs and 30,887 Unicode mappings.
+  CJK Unified Ideographs U+4E00-U+9FFF: 20,976 mapped characters.
+  Hiragana U+3040-U+309F: 93 mapped characters.
+  Katakana U+30A0-U+30FF: 96 mapped characters.
+  Chinese, Japanese kanji/kana, Latin and digit lyric samples contain no missing glyphs.
+  CN is the upstream broad Chinese/Japanese subset; Hangul is not included.
+  Characters outside this font's coverage use the platform's normal font fallback.
+
+Controls/LyricTypography.cs loads these static faces via ms-appx URIs; no system
+font installation, runtime font download, variable font, or synthetic bold is used.
+Primary and timed lyrics use Heavy; romanization, translation and track metadata
+can use Bold for a lighter hierarchy while retaining the rounded shape.

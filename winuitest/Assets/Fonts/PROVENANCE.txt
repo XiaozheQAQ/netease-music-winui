@@ -1,0 +1,12 @@
+Microsoft Fluent System Icons (Filled)
+
+Source: https://github.com/microsoft/fluentui-system-icons
+Pinned commit: 9eb184e96268d3293462f9d9d19225b4c7b07774
+Original path: fonts/FluentSystemIcons-Filled.ttf
+Font family verified from the TTF name table: FluentSystemIcons-Filled
+SHA-256: cd88ff3ff72c93a575d39b5504a422e67c6c28278642e7946b76a7b6ef35f46f
+License: MIT; see LICENSE-FluentSystemIcons.txt
+
+The unmodified font is bundled locally and requires no system installation or network access.
+Controls/FilledIcon.cs selects the 20px filled optical-size glyphs using the upstream JSON mapping.
+The heart's selected state uses color/opacity while retaining the same filled shape.
