@@ -16,7 +16,11 @@ public sealed partial class StartupView : UserControl
     private bool _subscribed;
     private bool _stopped;
 
-    public StartupView() => InitializeComponent();
+    public StartupView()
+    {
+        InitializeComponent();
+        ElementCompositionPreview.SetIsTranslationEnabled(LogoMotion, true);
+    }
 
     private void View_Loaded(object sender, RoutedEventArgs args)
     {
@@ -60,12 +64,11 @@ public sealed partial class StartupView : UserControl
     {
         var logo = ElementCompositionPreview.GetElementVisual(LogoMotion);
         logo.StopAnimation("Scale");
+        logo.StopAnimation("Translation");
+        logo.StopAnimation("Opacity");
         logo.Scale = Vector3.One;
-        var halo = ElementCompositionPreview.GetElementVisual(LogoHalo);
-        halo.StopAnimation("Opacity");
-        halo.StopAnimation("Scale");
-        halo.Scale = Vector3.One;
-        halo.Opacity = 0.08f;
+        logo.Properties.InsertVector3("Translation", Vector3.Zero);
+        logo.Opacity = 1;
     }
 
     private void UpdateAnimation()
@@ -77,34 +80,24 @@ public sealed partial class StartupView : UserControl
         if (!animate) return;
 
         var logo = ElementCompositionPreview.GetElementVisual(LogoMotion);
-        var halo = ElementCompositionPreview.GetElementVisual(LogoHalo);
         logo.CenterPoint = new Vector3(52, 52, 0);
-        halo.CenterPoint = new Vector3(74, 74, 0);
         var compositor = logo.Compositor;
         var easing = compositor.CreateCubicBezierEasingFunction(new Vector2(0.4f, 0), new Vector2(0.6f, 1));
 
         using var breathing = compositor.CreateVector3KeyFrameAnimation();
-        breathing.Duration = TimeSpan.FromMilliseconds(2800);
+        breathing.Duration = TimeSpan.FromMilliseconds(2600);
         breathing.IterationBehavior = AnimationIterationBehavior.Forever;
         breathing.InsertKeyFrame(0, Vector3.One);
-        breathing.InsertKeyFrame(0.5f, new Vector3(1.035f, 1.035f, 1), easing);
+        breathing.InsertKeyFrame(0.5f, new Vector3(1.022f, 1.022f, 1), easing);
         breathing.InsertKeyFrame(1, Vector3.One, easing);
         logo.StartAnimation("Scale", breathing);
 
-        using var glow = compositor.CreateScalarKeyFrameAnimation();
-        glow.Duration = breathing.Duration;
-        glow.IterationBehavior = AnimationIterationBehavior.Forever;
-        glow.InsertKeyFrame(0, 0.08f);
-        glow.InsertKeyFrame(0.5f, 0.16f, easing);
-        glow.InsertKeyFrame(1, 0.08f, easing);
-        halo.StartAnimation("Opacity", glow);
-
-        using var expansion = compositor.CreateVector3KeyFrameAnimation();
-        expansion.Duration = breathing.Duration;
-        expansion.IterationBehavior = AnimationIterationBehavior.Forever;
-        expansion.InsertKeyFrame(0, Vector3.One);
-        expansion.InsertKeyFrame(0.5f, new Vector3(1.07f, 1.07f, 1), easing);
-        expansion.InsertKeyFrame(1, Vector3.One, easing);
-        halo.StartAnimation("Scale", expansion);
+        using var floatMotion = compositor.CreateVector3KeyFrameAnimation();
+        floatMotion.Duration = breathing.Duration;
+        floatMotion.IterationBehavior = AnimationIterationBehavior.Forever;
+        floatMotion.InsertKeyFrame(0, Vector3.Zero);
+        floatMotion.InsertKeyFrame(0.5f, new Vector3(0, -2, 0), easing);
+        floatMotion.InsertKeyFrame(1, Vector3.Zero, easing);
+        logo.StartAnimation("Translation", floatMotion);
     }
 }

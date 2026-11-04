@@ -34,7 +34,7 @@ public sealed partial class MainWindow
             var restore = RestoreAccountAndPlaybackAsync(budget.Token);
             try
             {
-                await Task.WhenAll(LoadHomeAsync(cancellationToken: budget.Token), restore);
+                await Task.WhenAll(LoadHomeAsync(cancellationToken: budget.Token), restore, RestoreAudioOutputAsync(budget.Token));
                 await _startupCloudSync.WaitAsync(budget.Token);
                 budget.Token.ThrowIfCancellationRequested();
                 Shell.UpdateLayout();
@@ -78,6 +78,7 @@ public sealed partial class MainWindow
         StartupLayer.Visibility = Visibility.Collapsed;
         Shell.IsHitTestVisible = true;
         _startupReady = true;
+        InitializeTray();
         SetTitleBar(DragRegion);
         UpdateResponsiveLayout();
         UpdateCaptionInset();

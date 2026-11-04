@@ -44,6 +44,7 @@ public sealed partial class MainWindow
         Sync(VirtualKey.F, ctrl, "Ctrl + F", "搜索", () => { CloseNowPlaying(); SearchBox.Focus(FocusState.Keyboard); });
         Sync(VirtualKey.L, ctrl, "Ctrl + L", "打开 / 收起歌词", () => { if (_immersiveOpen) CloseNowPlaying(); else OpenNowPlaying(); });
         Sync(VirtualKey.Q, ctrl, "Ctrl + Q", "待播清单", () => { CloseNowPlaying(); SetInspector(true, true); });
+        Sync(VirtualKey.T, ctrl | VirtualKeyModifiers.Shift, "Ctrl + Shift + T", "托盘播放菜单", () => _tray?.ShowMenu());
         Sync(VirtualKey.D, ctrl, "Ctrl + D", "喜欢 / 取消喜欢", () => PlayerFavorite_Click(PlayerFavorite, new RoutedEventArgs()));
         Sync(VirtualKey.S, ctrl | VirtualKeyModifiers.Shift, "Ctrl + Shift + S", "随机播放", () => Shuffle_Click(ShuffleButton, new RoutedEventArgs()));
         Sync(VirtualKey.R, ctrl, "Ctrl + R", "切换循环模式", () => Repeat_Click(RepeatButton, new RoutedEventArgs()));

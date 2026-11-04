@@ -13,6 +13,7 @@ internal static class LibraryChecks
             var library = new LibraryStore(directory);
             var first = new Track { Id = 1, Title = "测试", DurationMs = 125000 };
             Program.Check(library.PlaybackQuality == AudioQuality.Default, "New libraries must use the default quality.");
+            Program.Check(library.AudioOutputDeviceId == string.Empty, "New libraries must follow the system audio output.");
             Program.Check(library.Theme == ThemePreference.System && library.LastSession.CurrentTrack is null && library.LastSession.Queue.Count == 0,
                 "A new library must follow the system theme and have no restored song.");
             Program.Check(first.DisplayDuration == "2:05", "Duration formatting failed.");
@@ -25,12 +26,16 @@ internal static class LibraryChecks
             library.Shuffle = true;
             library.Repeat = RepeatMode.All;
             library.PlaybackQuality = "hires";
+            library.AudioOutputDeviceId = "{0.0.0.00000000}.fixture-speakers";
             var reloaded = new LibraryStore(directory);
             Program.Check(reloaded.Favorites.Count == 1 && reloaded.IsFavorite(1),
                 $"Favorite was not persisted at {directory}. Save: {library.LastSaveError ?? "succeeded"}; reload: {reloaded.LastSaveError ?? "succeeded"}.");
             Program.Check(reloaded.Recent.Count == 1, "History was not deduplicated.");
             Program.Check(reloaded.Volume == 0.32 && reloaded.Shuffle && reloaded.Repeat == RepeatMode.All, "Playback preferences were not persisted.");
             Program.Check(reloaded.PlaybackQuality == "hires", "Quality preference was not persisted.");
+            Program.Check(reloaded.AudioOutputDeviceId == "{0.0.0.00000000}.fixture-speakers", "Audio routing preference was not persisted.");
+            reloaded.AudioOutputDeviceId = string.Empty;
+            Program.Check(new LibraryStore(directory).AudioOutputDeviceId == string.Empty, "System-default audio output was not persisted.");
             reloaded.PlaybackQuality = "invalid-quality";
             Program.Check(new LibraryStore(directory).PlaybackQuality == AudioQuality.Default, "Invalid quality was not normalized.");
             reloaded.Theme = ThemePreference.Dark;
@@ -62,10 +67,11 @@ internal static class LibraryChecks
             var broken = new LibraryStore(directory);
             Program.Check(broken.Favorites.Count == 0 && broken.LastSaveError is not null, "Corrupt state was not recovered.");
             Program.Check(broken.Theme == ThemePreference.System && broken.LastSession.CurrentTrack is null, "Corrupt session/theme defaults were not recovered.");
-            File.WriteAllText(statePath, "{\"Favorites\":null,\"Recent\":null,\"Volume\":12,\"Repeat\":42,\"Theme\":42,\"LastSession\":null}");
+            File.WriteAllText(statePath, "{\"Favorites\":null,\"Recent\":null,\"Volume\":12,\"Repeat\":42,\"Theme\":42,\"LastSession\":null,\"AudioOutputDeviceId\":null}");
             var invalid = new LibraryStore(directory);
             Program.Check(invalid.Volume == 1 && invalid.Repeat == RepeatMode.Off && invalid.Recent.Count == 0, "Invalid persisted values were not normalized.");
             Program.Check(invalid.Theme == ThemePreference.System && invalid.LastSession.PositionMs == 0, "Invalid theme or null session was not normalized.");
+            Program.Check(invalid.AudioOutputDeviceId == string.Empty, "Null audio output must fall back to the system default.");
             File.WriteAllText(statePath, "{\"LastSession\":{\"CurrentTrack\":{\"Id\":2,\"DurationMs\":10000},\"Queue\":[null,{\"Id\":-1},{\"Id\":3},{\"Id\":3}],\"PositionMs\":999999}}");
             var clamped = new LibraryStore(directory).LastSession;
             Program.Check(clamped.PositionMs == 10000 && clamped.Queue.Select(track => track.Id).SequenceEqual(new long[] { 2, 3 }),

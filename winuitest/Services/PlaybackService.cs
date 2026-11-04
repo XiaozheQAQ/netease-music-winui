@@ -4,8 +4,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Windows.Devices.Enumeration;
 using Windows.Media;
 using Windows.Media.Core;
+using Windows.Media.Devices;
 using Windows.Media.Playback;
 using Windows.Storage.Streams;
 using winuitest.Models;
@@ -31,6 +33,12 @@ public sealed class PlaybackService : IDisposable
     private bool _shuffle;
     private double _volume = 0.75;
     private RepeatMode _repeat;
+    private readonly CancellationTokenSource _audioOutputLifetime = new();
+    private readonly Dictionary<string, DeviceInformation> _watchedAudioOutputs = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _unavailableAudioOutputs = new(StringComparer.OrdinalIgnoreCase);
+    private DeviceWatcher? _audioOutputWatcher;
+    private DeviceInformation? _selectedAudioOutput;
+    private int _audioOutputSelectionGeneration;
 
     public PlaybackService(NeteaseMusicClient client, DispatcherQueue dispatcher)
     {
@@ -41,6 +49,7 @@ public sealed class PlaybackService : IDisposable
         _positionTimer.Interval = TimeSpan.FromMilliseconds(400);
         _positionTimer.Tick += (_, _) => RefreshPosition();
         _positionTimer.Start();
+        StartAudioOutputWatcher();
     }
 
     private MediaPlayer CreatePlayer(bool autoPlay = true)
@@ -51,6 +60,16 @@ public sealed class PlaybackService : IDisposable
             AutoPlay = autoPlay,
             Volume = _volume
         };
+        if (_selectedAudioOutput is not null)
+        {
+            try { player.AudioDevice = _selectedAudioOutput; }
+            catch (Exception error) when (IsAudioDeviceError(error))
+            {
+                // The endpoint can disappear between a watcher notification and a track change.
+                // A new player already uses the system default, so it can continue opening.
+                _selectedAudioOutput = null;
+            }
+        }
         player.MediaOpened += OnMediaOpened;
         player.MediaEnded += OnMediaEnded;
         player.MediaFailed += OnMediaFailed;
@@ -121,6 +140,159 @@ public sealed class PlaybackService : IDisposable
     }
     public TimeSpan Duration { get; private set; }
     public IReadOnlyList<Track> Queue => _queue.AsReadOnly();
+
+    /// <summary>An empty ID follows the Windows default output instead of pinning an endpoint.</summary>
+    public string SelectedAudioOutputId => _selectedAudioOutput?.Id ?? string.Empty;
+
+    /// <summary>Returns actual enabled endpoints only; callers provide the system-default option.</summary>
+    public async Task<IReadOnlyList<AudioOutputOption>> GetAudioOutputsAsync(CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<AudioOutputOption> result = Array.Empty<AudioOutputOption>();
+        await OnUiAsync(async () =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var selectionGeneration = _audioOutputSelectionGeneration;
+            using var request = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _audioOutputLifetime.Token);
+            var devices = await DeviceInformation.FindAllAsync(MediaDevice.GetAudioRenderSelector()).AsTask(request.Token);
+            if (_disposed) return;
+            request.Token.ThrowIfCancellationRequested();
+            var available = devices.Where(IsAvailableAudioOutput).ToArray();
+            if (selectionGeneration == _audioOutputSelectionGeneration && _selectedAudioOutput is not null &&
+                !available.Any(device => SameAudioOutput(device.Id, SelectedAudioOutputId)))
+                ResetUnavailableAudioOutput();
+            result = available.OrderBy(device => device.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ThenBy(device => device.Id, StringComparer.OrdinalIgnoreCase)
+                .Select(device => new AudioOutputOption(device.Id,
+                    string.IsNullOrWhiteSpace(device.Name) ? "音频输出设备" : device.Name,
+                    SameAudioOutput(device.Id, SelectedAudioOutputId))).ToArray();
+        });
+        return result;
+    }
+
+    /// <summary>Changes the live player's route without changing its source, position or play/pause state.</summary>
+    public Task SelectAudioOutputAsync(string? deviceId, CancellationToken cancellationToken = default) => OnUiAsync(async () =>
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var requestGeneration = ++_audioOutputSelectionGeneration;
+        var requestedId = string.IsNullOrWhiteSpace(deviceId) ? string.Empty : deviceId.Trim();
+        if (requestedId.Length == 0)
+        {
+            ApplyAudioOutput(null);
+            return;
+        }
+
+        using var request = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _audioOutputLifetime.Token);
+        var devices = await DeviceInformation.FindAllAsync(MediaDevice.GetAudioRenderSelector()).AsTask(request.Token);
+        if (_disposed || requestGeneration != _audioOutputSelectionGeneration) return;
+        request.Token.ThrowIfCancellationRequested();
+        var device = devices.FirstOrDefault(item => SameAudioOutput(item.Id, requestedId) && IsAvailableAudioOutput(item));
+        if (device is null)
+        {
+            ResetUnavailableAudioOutput();
+            return;
+        }
+
+        try { ApplyAudioOutput(device); }
+        catch (Exception error) when (IsAudioDeviceError(error))
+        {
+            ResetUnavailableAudioOutput();
+            Error?.Invoke(this, "所选音频设备暂时不可用，已切换到系统默认输出。");
+        }
+    });
+
+    private void ApplyAudioOutput(DeviceInformation? device)
+    {
+        // Setting null restores MediaPlayer's normal Windows default-device routing.
+        _player.AudioDevice = device!;
+        _selectedAudioOutput = device;
+        RaiseStateChanged();
+    }
+
+    private void ResetUnavailableAudioOutput()
+    {
+        // Also forget an unplugged endpoint if Windows currently has no usable default.
+        // The next track will then create a player with default routing.
+        _selectedAudioOutput = null;
+        try { _player.AudioDevice = null!; }
+        catch (Exception error) when (IsAudioDeviceError(error))
+        {
+            Error?.Invoke(this, "音频输出设备不可用，请检查 Windows 声音设置。");
+        }
+        RaiseStateChanged();
+    }
+
+    private bool IsAvailableAudioOutput(DeviceInformation device) =>
+        device.IsEnabled && !_unavailableAudioOutputs.Contains(device.Id);
+
+    private static bool SameAudioOutput(string left, string right) =>
+        string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsAudioDeviceError(Exception error) =>
+        error is System.Runtime.InteropServices.COMException or InvalidOperationException or ArgumentException;
+
+    private void StartAudioOutputWatcher()
+    {
+        try
+        {
+            _audioOutputWatcher = DeviceInformation.CreateWatcher(MediaDevice.GetAudioRenderSelector());
+            _audioOutputWatcher.Added += OnAudioOutputAdded;
+            _audioOutputWatcher.Updated += OnAudioOutputUpdated;
+            _audioOutputWatcher.Removed += OnAudioOutputRemoved;
+            _audioOutputWatcher.Start();
+        }
+        catch (Exception error) when (IsAudioDeviceError(error))
+        {
+            // Enumeration still works on demand when device notifications are unavailable.
+            StopAudioOutputWatcher();
+        }
+    }
+
+    private void OnAudioOutputAdded(DeviceWatcher sender, DeviceInformation device) => Dispatch(() =>
+    {
+        _watchedAudioOutputs[device.Id] = device;
+        if (device.IsEnabled) _unavailableAudioOutputs.Remove(device.Id);
+        else _unavailableAudioOutputs.Add(device.Id);
+    });
+
+    private void OnAudioOutputUpdated(DeviceWatcher sender, DeviceInformationUpdate update) => Dispatch(() =>
+    {
+        if (_watchedAudioOutputs.TryGetValue(update.Id, out var device))
+        {
+            device.Update(update);
+            if (device.IsEnabled) _unavailableAudioOutputs.Remove(device.Id);
+            else _unavailableAudioOutputs.Add(device.Id);
+        }
+        if (_selectedAudioOutput is not null && SameAudioOutput(update.Id, SelectedAudioOutputId))
+        {
+            // The selected object may come from a later FindAllAsync rather than the watcher.
+            if (!ReferenceEquals(_selectedAudioOutput, device)) _selectedAudioOutput.Update(update);
+            if (!_selectedAudioOutput.IsEnabled || _unavailableAudioOutputs.Contains(update.Id)) ResetUnavailableAudioOutput();
+        }
+    });
+
+    private void OnAudioOutputRemoved(DeviceWatcher sender, DeviceInformationUpdate update) => Dispatch(() =>
+    {
+        _watchedAudioOutputs.Remove(update.Id);
+        _unavailableAudioOutputs.Add(update.Id);
+        if (SameAudioOutput(update.Id, SelectedAudioOutputId)) ResetUnavailableAudioOutput();
+    });
+
+    private void StopAudioOutputWatcher()
+    {
+        var watcher = _audioOutputWatcher;
+        _audioOutputWatcher = null;
+        if (watcher is null) return;
+        watcher.Added -= OnAudioOutputAdded;
+        watcher.Updated -= OnAudioOutputUpdated;
+        watcher.Removed -= OnAudioOutputRemoved;
+        try
+        {
+            if (watcher.Status is DeviceWatcherStatus.Started or DeviceWatcherStatus.EnumerationCompleted) watcher.Stop();
+        }
+        catch (Exception error) when (IsAudioDeviceError(error)) { }
+        _watchedAudioOutputs.Clear();
+        _unavailableAudioOutputs.Clear();
+    }
 
     public double Volume
     {
@@ -489,6 +661,10 @@ public sealed class PlaybackService : IDisposable
         if (_disposed) return;
         _disposed = true;
         ++_generation;
+        ++_audioOutputSelectionGeneration;
+        _audioOutputLifetime.Cancel();
+        StopAudioOutputWatcher();
+        _audioOutputLifetime.Dispose();
         _positionTimer.Stop();
         _playRequest?.Cancel();
         _playRequest?.Dispose();

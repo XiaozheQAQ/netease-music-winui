@@ -1,14 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <defs>
-    <linearGradient id="pink" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#F4617E"/>
-      <stop offset="1" stop-color="#E94764"/>
-    </linearGradient>
-  </defs>
-  <rect x="4" y="4" width="248" height="248" rx="56" fill="url(#pink)"/>
-  <g fill="#FFF">
-    <path d="M111 82 Q111 76 117 75 L184 59 Q190 58 190 65 L190 150 L178 150 L178 88 L123 101 L123 173 L111 173 Z"/>
-    <ellipse cx="101" cy="181" rx="25" ry="17" transform="rotate(-20 101 181)"/>
-    <ellipse cx="168" cy="158" rx="25" ry="17" transform="rotate(-20 168 158)"/>
-  </g>
+  <title>Luma Music</title>
+  <path d="M60 4 L196 4 C226.928 4 252 29.072 252 60 L252 196 C252 226.928 226.928 252 196 252 L60 252 C29.072 252 4 226.928 4 196 L4 60 C4 29.072 29.072 4 60 4 Z" fill="#E51B23"/>
+  <path d="M151 188 C174 204 195 194 195 176 C195 164 183 159 178 168" fill="none" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M102 139 C92 156 90 178 94 200 C96 210 107 214 128 214 C149 214 160 210 162 200 C166 178 164 157 154 139 Z" fill="#FFFFFF"/>
+  <path d="M82 88 C80 77 78 61 85 52 C87 49 104 61 112 70 C122 67 136 67 146 70 C154 61 171 49 174 52 C181 61 179 77 177 88 C185 99 188 112 181 127 C174 143 154 151 130 151 C105 151 85 143 78 127 C72 112 75 98 82 88 Z" fill="#FFFFFF"/>
+  <path d="M89 64 C88 71 89 79 90 82 L102 77 C98 72 94 67 89 64 Z" fill="#E51B23"/>
+  <path d="M169 64 C170 71 169 79 168 82 L156 77 C160 72 164 67 169 64 Z" fill="#E51B23"/>
+  <path d="M99 106 C103 101 110 101 114 106" fill="none" stroke="#E51B23" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M142 106 C146 101 153 101 157 106" fill="none" stroke="#E51B23" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M124 117 C126 115 130 115 132 117 C133 119 129 123 128 123 C127 123 123 119 124 117 Z" fill="#E51B23"/>
+  <path d="M128 123 L128 128 C125 132 120 132 117 129 M128 128 C131 132 136 132 139 129" fill="none" stroke="#E51B23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M117 178 C116 189 116 197 118 204 M139 178 C140 189 140 197 138 204" fill="none" stroke="#E51B23" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M91 110 C75 104 57 99 40 96 M89 118 C72 118 54 118 37 119 M91 126 C75 132 58 138 42 144" fill="none" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M165 110 C181 104 199 99 216 96 M167 118 C184 118 202 118 219 119 M165 126 C181 132 198 138 214 144" fill="none" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

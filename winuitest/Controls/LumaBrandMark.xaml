@@ -1,0 +1,24 @@
+<UserControl
+    x:Class="winuitest.Controls.LumaBrandMark"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    IsTabStop="False" IsHitTestVisible="False">
+    <!-- Generated from scripts/generate-brand-assets.ps1. -->
+    <Viewbox Stretch="Uniform">
+        <Canvas Width="256" Height="256">
+            <Path Data="M60 4 L196 4 C226.928 4 252 29.072 252 60 L252 196 C252 226.928 226.928 252 196 252 L60 252 C29.072 252 4 226.928 4 196 L4 60 C4 29.072 29.072 4 60 4 Z" Fill="#E51B23" />
+            <Path Data="M151 188 C174 204 195 194 195 176 C195 164 183 159 178 168" Stroke="#FFFFFF" StrokeThickness="12" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+            <Path Data="M102 139 C92 156 90 178 94 200 C96 210 107 214 128 214 C149 214 160 210 162 200 C166 178 164 157 154 139 Z" Fill="#FFFFFF" />
+            <Path Data="M82 88 C80 77 78 61 85 52 C87 49 104 61 112 70 C122 67 136 67 146 70 C154 61 171 49 174 52 C181 61 179 77 177 88 C185 99 188 112 181 127 C174 143 154 151 130 151 C105 151 85 143 78 127 C72 112 75 98 82 88 Z" Fill="#FFFFFF" />
+            <Path Data="M89 64 C88 71 89 79 90 82 L102 77 C98 72 94 67 89 64 Z" Fill="#E51B23" />
+            <Path Data="M169 64 C170 71 169 79 168 82 L156 77 C160 72 164 67 169 64 Z" Fill="#E51B23" />
+            <Path Data="M99 106 C103 101 110 101 114 106" Stroke="#E51B23" StrokeThickness="4.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+            <Path Data="M142 106 C146 101 153 101 157 106" Stroke="#E51B23" StrokeThickness="4.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+            <Path Data="M124 117 C126 115 130 115 132 117 C133 119 129 123 128 123 C127 123 123 119 124 117 Z" Fill="#E51B23" />
+            <Path Data="M128 123 L128 128 C125 132 120 132 117 129 M128 128 C131 132 136 132 139 129" Stroke="#E51B23" StrokeThickness="3.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+            <Path Data="M117 178 C116 189 116 197 118 204 M139 178 C140 189 140 197 138 204" Stroke="#E51B23" StrokeThickness="3.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+            <Path Data="M91 110 C75 104 57 99 40 96 M89 118 C72 118 54 118 37 119 M91 126 C75 132 58 138 42 144" Stroke="#FFFFFF" StrokeThickness="5.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+            <Path Data="M165 110 C181 104 199 99 216 96 M167 118 C184 118 202 118 219 119 M165 126 C181 132 198 138 214 144" Stroke="#FFFFFF" StrokeThickness="5.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+        </Canvas>
+    </Viewbox>
+</UserControl>

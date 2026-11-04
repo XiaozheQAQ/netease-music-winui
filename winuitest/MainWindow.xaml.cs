@@ -476,6 +476,7 @@ public sealed partial class MainWindow : Window
         QueueEmptyState.Visibility = _inspectorOpen && _queueVisible && _player.Queue.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         HighlightLyric();
         UpdateNowPlaying();
+        RefreshTray();
     }
 
     private async Task LoadLyricsAsync(long id)
@@ -767,6 +768,7 @@ public sealed partial class MainWindow : Window
     private void Window_Closed(object sender, WindowEventArgs args)
     {
         _closed = true;
+        _tray?.Dispose();
         _startupLifetime.Cancel();
         StartupScreen.Stop();
         _pageRequest?.Cancel(); _pageRequest?.Dispose();

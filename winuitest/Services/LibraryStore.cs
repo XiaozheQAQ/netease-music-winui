@@ -65,6 +65,22 @@ public sealed class LibraryStore
         }
     }
 
+    /// <summary>An empty endpoint ID follows the Windows default audio output.</summary>
+    public string AudioOutputDeviceId
+    {
+        get => _data.AudioOutputDeviceId;
+        set
+        {
+            var deviceId = NormalizeAudioOutputDeviceId(value);
+            if (_data.AudioOutputDeviceId == deviceId) return;
+            _data.AudioOutputDeviceId = deviceId;
+            Save();
+        }
+    }
+
+    private static string NormalizeAudioOutputDeviceId(string? value) =>
+        string.IsNullOrWhiteSpace(value) || value.Length > 2048 || value.Any(char.IsControl) ? string.Empty : value.Trim();
+
     public ThemePreference Theme
     {
         get => _data.Theme;
@@ -161,6 +177,7 @@ public sealed class LibraryStore
             if (!Enum.IsDefined(data.Repeat)) data.Repeat = RepeatMode.Off;
             if (!Enum.IsDefined(data.Theme)) data.Theme = ThemePreference.System;
             data.PlaybackQuality = AudioQuality.Normalize(data.PlaybackQuality);
+            data.AudioOutputDeviceId = NormalizeAudioOutputDeviceId(data.AudioOutputDeviceId);
             data.LastSession = NormalizeSession(data.LastSession);
             data.LyricOffsetsMs = (data.LyricOffsetsMs ?? new())
                 .Where(entry => entry.Key > 0)
@@ -235,6 +252,7 @@ public sealed class LibraryStore
         public RepeatMode Repeat { get; set; }
         public ThemePreference Theme { get; set; } = ThemePreference.System;
         public string PlaybackQuality { get; set; } = AudioQuality.Default;
+        public string AudioOutputDeviceId { get; set; } = string.Empty;
         public PlaybackSessionSnapshot LastSession { get; set; } = new();
         public Dictionary<long, int> LyricOffsetsMs { get; set; } = new();
     }
