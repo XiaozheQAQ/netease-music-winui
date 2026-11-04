@@ -308,30 +308,30 @@ public sealed class PlaybackService : IDisposable
     public bool Shuffle
     {
         get => _shuffle;
-        set => Dispatch(() =>
-        {
-            _shuffle = value;
-            _player.SystemMediaTransportControls.ShuffleEnabled = value;
-            RaiseStateChanged();
-        });
+        set => SetPlaybackMode(value, value ? RepeatMode.All : _repeat);
     }
 
     public RepeatMode Repeat
     {
         get => _repeat;
-        set => Dispatch(() =>
-        {
-            if (!Enum.IsDefined(value)) return;
-            _repeat = value;
-            _player.SystemMediaTransportControls.AutoRepeatMode = value switch
-            {
-                RepeatMode.All => MediaPlaybackAutoRepeatMode.List,
-                RepeatMode.One => MediaPlaybackAutoRepeatMode.Track,
-                _ => MediaPlaybackAutoRepeatMode.None
-            };
-            RaiseStateChanged();
-        });
+        set => SetPlaybackMode(value == RepeatMode.One ? false : _shuffle, value);
     }
+
+    public void SetPlaybackMode(bool shuffle, RepeatMode repeat) => Dispatch(() =>
+    {
+        if (!Enum.IsDefined(repeat)) return;
+        if (shuffle) repeat = RepeatMode.All;
+        _shuffle = shuffle;
+        _repeat = repeat;
+        _player.SystemMediaTransportControls.ShuffleEnabled = shuffle;
+        _player.SystemMediaTransportControls.AutoRepeatMode = repeat switch
+        {
+            RepeatMode.All => MediaPlaybackAutoRepeatMode.List,
+            RepeatMode.One => MediaPlaybackAutoRepeatMode.Track,
+            _ => MediaPlaybackAutoRepeatMode.None
+        };
+        RaiseStateChanged();
+    });
 
     public Task PlayAsync(Track track, IEnumerable<Track>? queue = null) => OnUiAsync(() => PlayCoreAsync(track, queue));
 

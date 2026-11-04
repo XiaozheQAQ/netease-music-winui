@@ -9,6 +9,7 @@ public sealed class Track
     public long Id { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Artist { get; set; } = string.Empty;
+    public List<ArtistReference> Artists { get; set; } = new();
     public string Album { get; set; } = string.Empty;
     public string ArtworkUrl { get; set; } = string.Empty;
     public long DurationMs { get; set; }
@@ -22,6 +23,53 @@ public sealed class Track
             return $"{duration.Ticks / TimeSpan.TicksPerMinute}:{duration.Seconds:00}";
         }
     }
+}
+
+public sealed class ArtistReference
+{
+    public long Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+}
+
+public sealed class ArtistPage
+{
+    public long Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string ArtworkUrl { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public List<Track> Tracks { get; set; } = new();
+}
+
+public sealed class ArtistSongPage
+{
+    public List<Track> Tracks { get; set; } = new();
+    public int Total { get; set; }
+    public bool More { get; set; }
+}
+
+public sealed class MusicAlbum
+{
+    public long Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Artist { get; set; } = string.Empty;
+    public string ArtworkUrl { get; set; } = string.Empty;
+    public long PublishTime { get; set; }
+    public int TrackCount { get; set; }
+}
+
+public sealed class ArtistAlbumPage
+{
+    public List<MusicAlbum> Albums { get; set; } = new();
+    public bool More { get; set; }
+}
+
+public sealed class AlbumDetail
+{
+    public long Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Artist { get; set; } = string.Empty;
+    public string ArtworkUrl { get; set; } = string.Empty;
+    public List<Track> Tracks { get; set; } = new();
 }
 
 public sealed class MusicPlaylist

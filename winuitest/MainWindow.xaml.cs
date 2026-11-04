@@ -89,7 +89,7 @@ public sealed partial class MainWindow : Window
         {
             Volume = _library.Volume,
             Shuffle = _library.Shuffle,
-            Repeat = _library.Repeat
+            Repeat = _library.Shuffle ? RepeatMode.All : _library.Repeat
         };
         _client.PreferredQuality = _library.PlaybackQuality;
         VolumeSlider.Value = _player.Volume * 100;
@@ -128,8 +128,11 @@ public sealed partial class MainWindow : Window
         };
         NowPlaying.CloseRequested += (_, _) => CloseNowPlaying();
         NowPlaying.FullScreenRequested += (_, _) => SetLyricsFullScreen(!_lyricsFullScreen);
-        NowPlaying.ShuffleRequested += (_, _) => Shuffle_Click(ShuffleButton, new RoutedEventArgs());
+        NowPlaying.QueueRequested += (_, _) => TransportQueue_Click(ShuffleButton, new RoutedEventArgs());
+        NowPlaying.ArtistRequested += async (_, anchor) => await OpenCurrentTrackArtistAsync(anchor);
         NowPlaying.RepeatRequested += (_, _) => Repeat_Click(RepeatButton, new RoutedEventArgs());
+        InitializeArtistUi();
+        InitializeWindowChrome();
         SelectNav("discover");
         TodayLabel.Text = DateTime.Now.ToString("M月d日 dddd", CultureInfo.GetCultureInfo("zh-CN"));
         Player_StateChanged(this, EventArgs.Empty);
@@ -155,8 +158,8 @@ public sealed partial class MainWindow : Window
         if (_exitLyricsShortcut is not null) _exitLyricsShortcut.IsEnabled = _immersiveOpen || _inspectorOpen;
         Notice.IsOpen = false;
         ResetPageLoading();
-        var destination = page == "discover" ? (UIElement)HomeView : page == "cloud" ? CloudView : page == "settings" ? SettingsView : TracksView;
-        foreach (var view in new UIElement[] { HomeView, TracksView, CloudView, SettingsView })
+        var destination = page == "discover" ? (UIElement)HomeView : page == "cloud" ? CloudView : page == "settings" ? SettingsView : page == "artist" ? ArtistView : TracksView;
+        foreach (var view in new UIElement[] { HomeView, TracksView, CloudView, SettingsView, ArtistView })
         {
             if (!_startupReady) _motion.Cancel(view, ReferenceEquals(view, destination));
             else if (!ReferenceEquals(view, destination)) _ = _motion.HideAsync(view, offset: -6, durationMs: 200);
@@ -164,6 +167,7 @@ public sealed partial class MainWindow : Window
         if (_startupReady) _ = _motion.RevealAsync(destination, offset: 10, durationMs: 360);
         RefreshButton.Visibility = page == "settings" ? Visibility.Collapsed : Visibility.Visible;
         CollectionCoverBorder.Visibility = Visibility.Collapsed;
+        AlbumArtistBackButton.Visibility = Visibility.Collapsed;
         ResetSearchPaging();
         SelectNav(page);
         return _pageRequest.Token;
@@ -172,7 +176,7 @@ public sealed partial class MainWindow : Window
     private void SelectNav(string page)
     {
         MainNavigation.SelectedItem = page switch { "discover" => DiscoverNav, "favorites" => FavoritesNav, "recent" => RecentNav, "cloud" => CloudNav, "playlist" => FindSidebarPlaylistItem(_playlistId), "settings" => MainNavigation.SettingsItem, _ => null };
-        Breadcrumb.Text = page switch { "favorites" or "recent" => "资料库", "playlist" => "歌单", "cloud" => "网易云音乐", "settings" => "设置", "search" => "搜索", _ => "现在就听" };
+        Breadcrumb.Text = page switch { "favorites" or "recent" => "本地", "playlist" => "歌单", "cloud" => "网易云音乐", "settings" => "设置", "search" => "搜索", "artist" => "歌手", "album" => "专辑", _ => "现在就听" };
     }
 
     private async Task LoadHomeAsync(bool refresh = false, CancellationToken cancellationToken = default)
@@ -338,6 +342,8 @@ public sealed partial class MainWindow : Window
             case "discover": await LoadHomeAsync(true); break;
             case "search": await SearchAsync(_query); break;
             case "playlist": await OpenPlaylistAsync(_playlistId); break;
+            case "artist": await RefreshArtistAsync(); break;
+            case "album": await OpenAlbumAsync(_artistAlbumId); break;
             case "favorites": case "recent": OpenLibrary(_page); break;
             case "settings": break;
             case "cloud": await SyncCloudPlaylistsAsync(); break;
@@ -429,10 +435,12 @@ public sealed partial class MainWindow : Window
         var track = _player.CurrentTrack;
         PlayPauseIcon.Glyph = _player.IsLoading ? FilledIcons.Loading : _player.IsPlaying ? FilledIcons.Pause : FilledIcons.Play;
         PlayPauseButton.IsEnabled = !_player.IsLoading;
-        ShuffleIcon.Foreground = ThemeBrush(_player.Shuffle ? "LumaAccentTextBrush" : "LumaTextTertiaryBrush");
-        RepeatIcon.Foreground = ThemeBrush(_player.Repeat != RepeatMode.Off ? "LumaAccentTextBrush" : "LumaTextTertiaryBrush");
-        RepeatIcon.Glyph = _player.Repeat == RepeatMode.One ? FilledIcons.RepeatOne : FilledIcons.Repeat;
-        ToolTipService.SetToolTip(RepeatButton, _player.Repeat switch { RepeatMode.All => "列表循环", RepeatMode.One => "单曲循环", _ => "循环关闭" });
+        ShuffleIcon.Foreground = ThemeBrush("LumaTextTertiaryBrush");
+        RepeatIcon.Foreground = ThemeBrush(_player.Shuffle || _player.Repeat != RepeatMode.Off ? "LumaAccentTextBrush" : "LumaTextTertiaryBrush");
+        RepeatIcon.Glyph = _player.Shuffle ? FilledIcons.Shuffle : _player.Repeat == RepeatMode.One ? FilledIcons.RepeatOne : FilledIcons.Repeat;
+        var modeLabel = _player.Shuffle ? "随机播放" : _player.Repeat switch { RepeatMode.All => "列表循环", RepeatMode.One => "单曲循环", _ => "顺序播放" };
+        ToolTipService.SetToolTip(RepeatButton, modeLabel);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(RepeatButton, modeLabel + "，点击切换播放模式");
         PlayerQualityBadge.Visibility = _player.IsPreview ? Visibility.Visible : Visibility.Collapsed;
         NowPlaying.UpdatePlaybackModes(_player.Shuffle, _player.Repeat);
         if (track is not null && track.Id != _displayedTrackId)
@@ -465,6 +473,7 @@ public sealed partial class MainWindow : Window
         HighlightLyric();
         UpdateNowPlaying();
         RefreshTray();
+        RefreshArtistLinks();
     }
 
     private async Task LoadLyricsAsync(long id)
@@ -552,8 +561,25 @@ public sealed partial class MainWindow : Window
         if (VolumeSlider.Value > 0) { _lastVolume = VolumeSlider.Value / 100; VolumeSlider.Value = 0; }
         else VolumeSlider.Value = _lastVolume * 100;
     }
-    private void Shuffle_Click(object sender, RoutedEventArgs e) { _player.Shuffle = !_player.Shuffle; _library.Shuffle = _player.Shuffle; ShowToast(_player.Shuffle ? "已开启随机播放" : "已关闭随机播放"); }
-    private void Repeat_Click(object sender, RoutedEventArgs e) { _player.Repeat = (RepeatMode)(((int)_player.Repeat + 1) % 3); _library.Repeat = _player.Repeat; }
+    private void Shuffle_Click(object sender, RoutedEventArgs e) => SetPlaybackMode(!_player.Shuffle, RepeatMode.Off);
+    private void Repeat_Click(object sender, RoutedEventArgs e)
+    {
+        if (_player.Shuffle) SetPlaybackMode(false, RepeatMode.Off);
+        else if (_player.Repeat == RepeatMode.Off) SetPlaybackMode(false, RepeatMode.All);
+        else if (_player.Repeat == RepeatMode.All) SetPlaybackMode(false, RepeatMode.One);
+        else SetPlaybackMode(true, RepeatMode.All);
+    }
+    private void SetPlaybackMode(bool shuffle, RepeatMode repeat)
+    {
+        _player.SetPlaybackMode(shuffle, repeat);
+        _library.Shuffle = _player.Shuffle;
+        _library.Repeat = _player.Repeat;
+    }
+    private void TransportQueue_Click(object sender, RoutedEventArgs e)
+    {
+        CloseNowPlaying();
+        SetInspector(true, true);
+    }
     private void SetInspector(bool queue, bool toggle = false)
     {
         if (_closed) return;
@@ -568,7 +594,7 @@ public sealed partial class MainWindow : Window
         if (_inspectorOpen) QueueList.Focus(FocusState.Programmatic);
         else
         {
-            QueueToggleButton.Focus(FocusState.Programmatic);
+            ShuffleButton.Focus(FocusState.Programmatic);
             QueueSearchViewportCheck();
         }
     }
@@ -636,12 +662,11 @@ public sealed partial class MainWindow : Window
     }
     private void UpdateCaptionInset()
     {
-        var scale = Math.Max(1, GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96d);
-        NowPlaying.SetCaptionInset(AppWindow.TitleBar.RightInset / scale);
+        RefreshWindowChrome();
     }
     private void SetLyricsFullScreen(bool fullScreen)
     {
-        if (_lyricsFullScreen == fullScreen) return;
+        if ((AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen) == fullScreen) { RefreshWindowChrome(); return; }
         try
         {
             if (fullScreen)
@@ -654,9 +679,7 @@ public sealed partial class MainWindow : Window
                 AppWindow.SetPresenter(AppWindowPresenterKind.Default);
                 SetTitleBar(NowPlaying.Visibility == Visibility.Visible ? NowPlaying.TitleBarRegion : DragRegion);
             }
-            _lyricsFullScreen = fullScreen;
-            NowPlaying.SetFullScreen(fullScreen);
-            UpdateCaptionInset();
+            RefreshWindowChrome();
         }
         catch (Exception ex) { ShowError("无法切换全屏", ex.Message); }
     }
@@ -731,6 +754,8 @@ public sealed partial class MainWindow : Window
         _lyricIndex = -1;
         HighlightLyric();
         Player_StateChanged(this, EventArgs.Empty);
+        RefreshThemeDependentVisuals();
+        RefreshArtistLinks();
     }
     private void UpdateCaptionTheme()
     {
@@ -748,6 +773,7 @@ public sealed partial class MainWindow : Window
         var width = Math.Max(1, Root.ActualWidth - SidebarColumn.Width.Value - HomeContent.Margin.Left - HomeContent.Margin.Right);
         ResizePlaylistCards(PlaylistGrid);
         ResizePlaylistCards(CloudPlaylistGrid);
+        ResizeArtistCards();
         HeroArtworkBorder.Visibility = width < 650 ? Visibility.Collapsed : Visibility.Visible;
     }
     private void ShowError(string title, string message) { if (_closed) return; Notice.Title = title; Notice.Message = message; Notice.IsOpen = true; if (NowPlaying.Visibility == Visibility.Visible) NowPlaying.ShowMessage(message); }
@@ -759,6 +785,7 @@ public sealed partial class MainWindow : Window
     private void Window_Closed(object sender, WindowEventArgs args)
     {
         _closed = true;
+        DisposeWindowChrome();
         _tray?.Dispose();
         _startupLifetime.Cancel();
         StartupScreen.Stop();

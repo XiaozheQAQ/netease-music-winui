@@ -29,5 +29,10 @@ input.on('line',async line=>{
  if(request.method==='stream')return reply({url:`http://127.0.0.1:${server.address().port}/silence.wav`,quality:'exhigh',isPreview:false});
  if(request.method==='lyrics')return reply({lines:[{timeMs:0,durationMs:180000,text:'Luma Music',translation:'小猫陪你听音乐',romanization:'',words:[]}]});
  if(request.method==='playlist')return reply({id:456,title:'托盘测试',subtitle:'Luma Music',artworkUrl,tracks});
+ if(request.method==='trackArtists')return reply([{id:7001,name:'Luma Artist'}]);
+ if(request.method==='artist')return reply({id:7001,name:'Luma Artist',artworkUrl,description:'Native artist fixture',tracks});
+ if(request.method==='artistSongs')return reply({tracks,total:2,more:false});
+ if(request.method==='artistAlbums')return reply({albums:[{id:8001,title:'Luma Album',artist:'Luma Artist',artworkUrl,publishTime:1700000000000,trackCount:2}],more:false});
+ if(request.method==='album')return reply({id:8001,title:'Luma Album',artist:'Luma Artist',artworkUrl,tracks});
  reply({ok:true});
 });

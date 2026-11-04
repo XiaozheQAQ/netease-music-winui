@@ -92,7 +92,9 @@
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="44" /><ColumnDefinition Width="44" /></Grid.ColumnDefinitions>
                         <StackPanel Spacing="4" VerticalAlignment="Center">
                             <TextBlock x:Name="TrackTitle" Text="未播放" FontSize="25" FontFamily="ms-appx:///Assets/Fonts/ResourceHanRoundedCN-Bold.ttf#Resource Han Rounded CN" FontWeight="Bold" Foreground="#F5FFFFFF" TextTrimming="CharacterEllipsis" />
-                            <TextBlock x:Name="TrackArtist" FontSize="21" FontFamily="ms-appx:///Assets/Fonts/ResourceHanRoundedCN-Bold.ttf#Resource Han Rounded CN" FontWeight="Bold" Foreground="#9FFFFFFF" TextTrimming="CharacterEllipsis" />
+                            <controls:HandButton x:Name="TrackArtistButton" Click="Artist_Click" HorizontalAlignment="Left" HorizontalContentAlignment="Left" Padding="0,2" MinHeight="0" MinWidth="0" Background="Transparent" BorderThickness="0" AutomationProperties.Name="查看歌手作品">
+                                <TextBlock x:Name="TrackArtist" FontSize="21" FontFamily="ms-appx:///Assets/Fonts/ResourceHanRoundedCN-Bold.ttf#Resource Han Rounded CN" FontWeight="Bold" Foreground="#BFFFFFFF" TextTrimming="CharacterEllipsis" />
+                            </controls:HandButton>
                         </StackPanel>
                         <Button x:Name="FavoriteButton" Grid.Column="1" Style="{StaticResource QuietButton}" Click="Favorite_Click" VerticalAlignment="Center" AutomationProperties.Name="收藏当前歌曲">
                             <Button.Resources><SolidColorBrush x:Key="ButtonBackground" Color="#14FFFFFF" /></Button.Resources>
@@ -156,7 +158,7 @@
                     </Grid>
                     <Grid x:Name="TransportControls" Margin="-4,20,-4,0" ColumnSpacing="12">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <Button x:Name="ShuffleButton" Style="{StaticResource QuietButton}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="Shuffle_Click" ToolTipService.ToolTip="随机播放" AutomationProperties.Name="随机播放"><controls:FilledIcon x:Name="ShuffleIcon" Kind="Shuffle" FontSize="20" /></Button>
+                        <Button x:Name="ShuffleButton" Style="{StaticResource QuietButton}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="Queue_Click" ToolTipService.ToolTip="播放列表" AutomationProperties.Name="播放列表"><controls:FilledIcon x:Name="ShuffleIcon" Kind="Queue" FontSize="20" /></Button>
                         <Button x:Name="PreviousButton" Grid.Column="1" Style="{StaticResource QuietButton}" Width="52" Height="52" VerticalAlignment="Center" Click="Previous_Click" AutomationProperties.Name="上一首"><controls:FilledIcon x:Name="PreviousIcon" Kind="Rewind" FontSize="34" /></Button>
                         <Button x:Name="PlayButton" Grid.Column="2" Style="{StaticResource QuietButton}" Width="72" Height="72" CornerRadius="36" Click="PlayPause_Click" AutomationProperties.Name="播放或暂停">
                             <Button.Resources>

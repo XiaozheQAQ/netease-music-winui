@@ -16,6 +16,7 @@ public sealed partial class MainWindow
         "discover" => HomeView,
         "cloud" => CloudView,
         "settings" => SettingsView,
+        "artist" => ArtistView,
         _ => TracksView
     };
 
@@ -42,7 +43,7 @@ public sealed partial class MainWindow
             };
             // Only one body is visible: a skeleton never overlays stale content
             // or an empty-state message, and the shared page background stays put.
-            foreach (var page in new UIElement[] { HomeView, TracksView, CloudView, SettingsView })
+            foreach (var page in new UIElement[] { HomeView, TracksView, CloudView, SettingsView, ArtistView })
                 _motion.Cancel(page, false);
             EmptyState.Visibility = Visibility.Collapsed;
             _motion.Cancel(PageSkeleton, true);
@@ -85,6 +86,7 @@ public sealed partial class MainWindow
         HomeContent.Margin = new Thickness(inset, 0, inset, 32);
         CloudContent.Margin = HomeContent.Margin;
         TracksView.Margin = new Thickness(inset, 0, inset, 20);
+        ArtistView.Margin = TracksView.Margin;
         Inspector.Padding = new Thickness(inset, 0, inset, 20);
         PageSkeleton.Margin = TracksView.Margin;
         SettingsView.Margin = new Thickness(inset, 0, inset, 24);

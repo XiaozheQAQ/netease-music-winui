@@ -47,7 +47,7 @@ public sealed partial class MainWindow
         Sync(VirtualKey.T, ctrl | VirtualKeyModifiers.Shift, "Ctrl + Shift + T", "托盘播放菜单", () => _tray?.ShowMenu());
         Sync(VirtualKey.D, ctrl, "Ctrl + D", "喜欢 / 取消喜欢", () => PlayerFavorite_Click(PlayerFavorite, new RoutedEventArgs()));
         Sync(VirtualKey.S, ctrl | VirtualKeyModifiers.Shift, "Ctrl + Shift + S", "随机播放", () => Shuffle_Click(ShuffleButton, new RoutedEventArgs()));
-        Sync(VirtualKey.R, ctrl, "Ctrl + R", "切换循环模式", () => Repeat_Click(RepeatButton, new RoutedEventArgs()));
+        Sync(VirtualKey.R, ctrl, "Ctrl + R", "切换播放模式", () => Repeat_Click(RepeatButton, new RoutedEventArgs()));
         Sync((VirtualKey)188, ctrl, "Ctrl + ,", "设置", () => { CloseNowPlaying(); BeginPage("settings"); });
         Sync(VirtualKey.F5, VirtualKeyModifiers.None, "F5", "刷新当前页面", () => Refresh_Click(RefreshButton, new RoutedEventArgs()));
         Sync(VirtualKey.F11, VirtualKeyModifiers.None, "F11", "进入 / 退出全屏歌词", () => { OpenNowPlaying(); SetLyricsFullScreen(!_lyricsFullScreen); });

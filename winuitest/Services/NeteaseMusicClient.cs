@@ -35,6 +35,21 @@ public sealed class NeteaseMusicClient : IDisposable
     public Task<StreamInfo> ResolveTrackAsync(long id, CancellationToken cancellationToken = default) =>
         RequestAsync<StreamInfo>("stream", new { id, quality = PreferredQuality }, cancellationToken);
 
+    public Task<List<ArtistReference>> GetTrackArtistsAsync(long id, CancellationToken cancellationToken = default) =>
+        RequestAsync<List<ArtistReference>>("trackArtists", new { id }, cancellationToken);
+
+    public Task<ArtistPage> GetArtistAsync(long id, CancellationToken cancellationToken = default) =>
+        RequestAsync<ArtistPage>("artist", new { id }, cancellationToken);
+
+    public Task<ArtistSongPage> GetArtistSongsAsync(long id, int offset = 0, int limit = 50, CancellationToken cancellationToken = default) =>
+        RequestAsync<ArtistSongPage>("artistSongs", new { id, offset, limit }, cancellationToken);
+
+    public Task<ArtistAlbumPage> GetArtistAlbumsAsync(long id, int offset = 0, int limit = 30, CancellationToken cancellationToken = default) =>
+        RequestAsync<ArtistAlbumPage>("artistAlbums", new { id, offset, limit }, cancellationToken);
+
+    public Task<AlbumDetail> GetAlbumAsync(long id, CancellationToken cancellationToken = default) =>
+        RequestAsync<AlbumDetail>("album", new { id }, cancellationToken);
+
     public Task<QrLoginSession> CreateQrLoginAsync(CancellationToken cancellationToken = default) =>
         RequestAsync<QrLoginSession>("authQrCreate", null, cancellationToken);
 

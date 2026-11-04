@@ -53,10 +53,39 @@ function trackOf(value) {
     id: Number(song.id || value.id),
     title: song.name || value.name || '未命名歌曲',
     artist: artists.map(item => item.name).filter(Boolean).join(' / ') || '未知歌手',
+    artists: artistReferences(artists),
     album: album.name || '未知专辑',
     artworkUrl: artwork(album.picUrl || value.picUrl),
     durationMs: Math.trunc(Number(song.dt || song.duration || value.duration || 0)),
   };
+}
+
+function artistReferences(values = []) {
+  const unique = new Map();
+  for (const value of Array.isArray(values) ? values : []) {
+    const id = Number(value?.id);
+    if (Number.isSafeInteger(id) && id > 0 && typeof value.name === 'string' && value.name.trim())
+      unique.set(id, { id, name: value.name.trim() });
+  }
+  return [...unique.values()];
+}
+
+function albumOf(value) {
+  return {
+    id: Number(value.id), title: value.name || '未命名专辑',
+    artist: (value.artists || [value.artist]).filter(Boolean).map(item => item.name).filter(Boolean).join(' / '),
+    artworkUrl: artwork(value.picUrl || value.blurPicUrl),
+    publishTime: Number.isSafeInteger(Number(value.publishTime)) ? Number(value.publishTime) : 0,
+    trackCount: Math.max(0, Math.trunc(Number(value.size || value.songCount || 0))),
+  };
+}
+
+function pageArguments(params, defaultLimit) {
+  const offset = params.offset === undefined ? 0 : Number(params.offset);
+  const limit = params.limit === undefined ? defaultLimit : Number(params.limit);
+  if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1)
+    throw new SourceError('分页参数无效。', 'INVALID_ARGUMENT');
+  return { offset, limit: Math.min(100, limit) };
 }
 
 function playlistOf(value) {
@@ -349,6 +378,47 @@ function createBridge(api, options = {}) {
           tracks = ids.map(id => byId.get(id)).filter(Boolean);
         }
         return { ...playlistOf(playlist), tracks: tracks.map(trackOf) };
+      }
+      case 'trackArtists': {
+        const id = positiveId(params.id);
+        const body = await invoke('song_detail', { ids: String(id) });
+        // Old saved tracks have only display names. Resolve the original song
+        // ID; never guess which same-named artist owns it through text search.
+        const song = (body.songs || []).find(value => Number(value.id) === id);
+        return song ? artistReferences(song.ar || song.artists) : [];
+      }
+      case 'artist': {
+        const id = positiveId(params.id);
+        const body = await invoke('artists', { id });
+        const artist = body.artist;
+        if (!artist || Number(artist.id) !== id) throw new SourceError('暂时无法获取这位歌手的信息。');
+        return { id, name: artist.name || '未知歌手', artworkUrl: artwork(artist.picUrl || artist.img1v1Url),
+          description: artist.briefDesc || '', tracks: (body.hotSongs || []).map(trackOf) };
+      }
+      case 'artistSongs': {
+        const id = positiveId(params.id);
+        const { offset, limit } = pageArguments(params, 50);
+        const body = await invoke('artist_songs', { id, offset, limit, order: 'time' });
+        if (!Array.isArray(body.songs)) throw new SourceError('暂时无法获取歌手的单曲。');
+        const total = Math.max(0, Math.trunc(Number(body.total || 0)));
+        const more = body.more === true || body.more === undefined && (total > 0 ? offset + body.songs.length < total : body.songs.length === limit);
+        return { tracks: body.songs.map(trackOf), total, more: body.songs.length > 0 && more };
+      }
+      case 'artistAlbums': {
+        const id = positiveId(params.id);
+        const { offset, limit } = pageArguments(params, 30);
+        const body = await invoke('artist_album', { id, offset, limit });
+        if (!Array.isArray(body.hotAlbums)) throw new SourceError('暂时无法获取歌手的专辑。');
+        const albums = body.hotAlbums.map(albumOf).filter(album => Number.isSafeInteger(album.id) && album.id > 0);
+        return { albums, more: body.hotAlbums.length > 0 && (body.more === true || body.more === undefined && body.hotAlbums.length === limit) };
+      }
+      case 'album': {
+        const id = positiveId(params.id);
+        const body = await invoke('album', { id });
+        if (!body.album || Number(body.album.id) !== id || !Array.isArray(body.songs))
+          throw new SourceError('这个专辑暂时无法访问。');
+        // Some album tracks omit artwork/album fields; use their parent metadata.
+        return { ...albumOf(body.album), tracks: body.songs.map(song => trackOf({ ...song, al: { ...body.album, ...song.al } })) };
       }
       case 'stream': {
         const id = positiveId(params.id);

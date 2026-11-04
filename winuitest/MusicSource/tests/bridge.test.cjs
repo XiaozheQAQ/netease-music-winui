@@ -12,7 +12,7 @@ test('search normalizes NetEase track shapes and preserves paging', async () => 
   });
   const result = await bridge('search', { keywords: ' 周杰伦 ', offset: 30, limit: 30 });
   assert.equal(result.total, 123);
-  assert.deepEqual(result.tracks[0], { id: 42, title: '晴天', artist: '周杰伦', album: '叶惠美', artworkUrl: 'https://example.com/a.jpg', durationMs: 269000 });
+  assert.deepEqual(result.tracks[0], { id: 42, title: '晴天', artist: '周杰伦', artists: [], album: '叶惠美', artworkUrl: 'https://example.com/a.jpg', durationMs: 269000 });
 });
 
 test('LRC supports multiple timestamps, fractional seconds and offset', () => {

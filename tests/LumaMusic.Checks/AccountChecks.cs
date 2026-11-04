@@ -26,6 +26,15 @@ internal static class AccountChecks
         Program.Check(playlists.Playlists[0].IsOwnedBy(123) && !playlists.Playlists[0].IsOwnedBy(9) && !new MusicPlaylist().IsOwnedBy(0), "Playlist ownership check failed closed.");
         Program.Check((await client.GetPlaylistAsync(456)).IsOwnedBy(123), "Playlist detail lost its owner.");
         Program.Check(!(await client.GetUserPlaylistsAsync(123, 50)).More, "Playlist pagination parameters were lost.");
+        var artists = await client.GetTrackArtistsAsync(42);
+        Program.Check(artists is [{ Id: 7, Name: "歌手" }, { Id: 8 }], "Song artist IDs were lost.");
+        var artist = await client.GetArtistAsync(7);
+        Program.Check(artist is { Id: 7, Description: "介绍" } && artist.Tracks[0].Artists[0].Id == 7, "Artist page model failed.");
+        Program.Check((await client.GetArtistSongsAsync(7, 0, 2)).More && !(await client.GetArtistSongsAsync(7, 2, 2)).More, "Artist song paging lost offsets.");
+        var albums = await client.GetArtistAlbumsAsync(7);
+        Program.Check(albums.More && albums.Albums is [{ Id: 90, PublishTime: 1234567890000, TrackCount: 3 }], "Album metadata model failed.");
+        Program.Check(!(await client.GetArtistAlbumsAsync(7, 30)).More, "Album page offset was lost.");
+        Program.Check((await client.GetAlbumAsync(90)).Tracks is [{ Id: 42 }], "Album songs model failed.");
         await client.AddPlaylistTracksAsync(456, new long[] { 1, 1, 2 });
         await client.RemovePlaylistTracksAsync(456, Enumerable.Range(1, 1813).Select(id => (long)id));
         var invalidRejected = false;

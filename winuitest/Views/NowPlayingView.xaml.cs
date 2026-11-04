@@ -87,7 +87,8 @@ public sealed partial class NowPlayingView : UserControl
     public event EventHandler? FavoriteRequested;
     public event EventHandler? CloseRequested;
     public event EventHandler? FullScreenRequested;
-    public event EventHandler? ShuffleRequested;
+    public event EventHandler? QueueRequested;
+    public event EventHandler<FrameworkElement>? ArtistRequested;
     public event EventHandler? RepeatRequested;
     public event EventHandler<double>? SeekRequested;
     public event EventHandler<double>? LyricSeekRequested;
@@ -149,6 +150,7 @@ public sealed partial class NowPlayingView : UserControl
         PreviousButton.IsEnabled = _hasTrack;
         NextButton.IsEnabled = _hasTrack;
         FavoriteButton.IsEnabled = _hasTrack;
+        TrackArtistButton.IsEnabled = _hasTrack && !string.IsNullOrWhiteSpace(track?.Artist);
         FavoriteIcon.Glyph = FilledIcons.Heart;
         FavoriteIcon.Opacity = isFavorite ? 1 : 0.55;
         ToolTipService.SetToolTip(FavoriteButton, isFavorite ? "从喜欢的歌曲移除" : "添加到喜欢的歌曲");
@@ -172,13 +174,12 @@ public sealed partial class NowPlayingView : UserControl
         if (_shuffleMode == shuffle && _repeatMode == repeat) return;
         _shuffleMode = shuffle;
         _repeatMode = repeat;
-        ShuffleIcon.Opacity = shuffle ? 1 : 0.45;
-        ShuffleButton.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(shuffle ? (byte)36 : (byte)0, 255, 255, 255));
-        RepeatIcon.Opacity = repeat == RepeatMode.Off ? 0.45 : 1;
-        RepeatIcon.Glyph = repeat == RepeatMode.One ? FilledIcons.RepeatOne : FilledIcons.Repeat;
-        RepeatButton.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(repeat == RepeatMode.Off ? (byte)0 : (byte)36, 255, 255, 255));
-        ToolTipService.SetToolTip(ShuffleButton, shuffle ? "关闭随机播放" : "随机播放");
-        ToolTipService.SetToolTip(RepeatButton, repeat switch { RepeatMode.All => "列表循环", RepeatMode.One => "单曲循环", _ => "循环关闭" });
+        RepeatIcon.Opacity = !shuffle && repeat == RepeatMode.Off ? 0.45 : 1;
+        RepeatIcon.Glyph = shuffle ? FilledIcons.Shuffle : repeat == RepeatMode.One ? FilledIcons.RepeatOne : FilledIcons.Repeat;
+        RepeatButton.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(!shuffle && repeat == RepeatMode.Off ? (byte)0 : (byte)36, 255, 255, 255));
+        var label = shuffle ? "随机播放" : repeat switch { RepeatMode.All => "列表循环", RepeatMode.One => "单曲循环", _ => "顺序播放" };
+        ToolTipService.SetToolTip(RepeatButton, label);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(RepeatButton, label + "，点击切换播放模式");
     }
 
     /// <summary>Accepts the native original-song clock, including any preview offset.</summary>
@@ -803,7 +804,8 @@ public sealed partial class NowPlayingView : UserControl
     private void Previous_Click(object sender, RoutedEventArgs e) => PreviousRequested?.Invoke(this, EventArgs.Empty);
     private void Next_Click(object sender, RoutedEventArgs e) => NextRequested?.Invoke(this, EventArgs.Empty);
     private void PlayPause_Click(object sender, RoutedEventArgs e) => PlayPauseRequested?.Invoke(this, EventArgs.Empty);
-    private void Shuffle_Click(object sender, RoutedEventArgs e) => ShuffleRequested?.Invoke(this, EventArgs.Empty);
+    private void Queue_Click(object sender, RoutedEventArgs e) => QueueRequested?.Invoke(this, EventArgs.Empty);
+    private void Artist_Click(object sender, RoutedEventArgs e) => ArtistRequested?.Invoke(this, TrackArtistButton);
     private void Repeat_Click(object sender, RoutedEventArgs e) => RepeatRequested?.Invoke(this, EventArgs.Empty);
     private static string FormatTime(TimeSpan value) => $"{Math.Max(0, (int)value.TotalMinutes)}:{Math.Max(0, value.Seconds):00}";
 

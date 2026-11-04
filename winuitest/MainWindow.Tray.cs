@@ -17,6 +17,9 @@ public sealed partial class MainWindow
     private void InitializeTray()
     {
         if (_tray is not null || _closed) return;
+        var uiChecksStarted = false;
+        TryStartUiChecks(ref uiChecksStarted);
+        if (uiChecksStarted) return;
         try
         {
             _tray = new TrayIconService(DispatcherQueue,
@@ -32,6 +35,7 @@ public sealed partial class MainWindow
     // The optional native integration harness is linked only in check builds.
     // Release builds erase both this declaration and its call.
     partial void RunTrayDiagnostics();
+    partial void TryStartUiChecks(ref bool started);
 
     private TrayState GetTrayState() => new()
     {
