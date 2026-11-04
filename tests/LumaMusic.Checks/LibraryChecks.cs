@@ -59,6 +59,7 @@ internal static class LibraryChecks
             Program.Check(new LibraryStore(directory).Theme == ThemePreference.System, "Following the system theme was not persisted.");
             Program.Check(!reloaded.ToggleFavorite(first), "Removing a favorite failed.");
             Program.Check(new LibraryStore(directory).Favorites.Count == 0, "Favorite removal was not persisted.");
+            VerifyBatchFavorites(reloaded, directory, first, second);
             for (var index = 1; index <= 110; index++) reloaded.Remember(new Track { Id = index, Title = "Song " + index });
             Program.Check(reloaded.Recent.Count == 100 && reloaded.Recent[0].Id == 110, "History cap or ordering failed.");
             reloaded.ClearRecent();
@@ -80,7 +81,7 @@ internal static class LibraryChecks
             Program.Check(new LibraryStore(directory).LastSession.PositionMs == 0, "Negative session position was not clamped.");
             invalid.SavePlaybackSession(null, Array.Empty<Track>(), TimeSpan.Zero);
             Program.Check(new LibraryStore(directory).LastSession.CurrentTrack is null, "Clearing the saved session failed.");
-            Console.WriteLine("PASS library: favorites, history, theme preferences, playback session metadata/queue/position, corrupt/null state recovery");
+            Console.WriteLine("PASS library: batch favorite order/deduplication/one notification/persistence, history, theme preferences, playback session metadata/queue/position, corrupt/null state recovery");
         }
         finally
         {
@@ -89,5 +90,48 @@ internal static class LibraryChecks
             File.Delete(statePath + ".tmp");
             if (Directory.Exists(directory)) Directory.Delete(directory);
         }
+    }
+
+    private static void VerifyBatchFavorites(LibraryStore library, string directory, Track first, Track second)
+    {
+        library.SetFavorites(new[] { second }, true);
+        var third = new Track { Id = 3, Title = "第三首", Artist = "另一位歌手" };
+        var changed = 0;
+        var persistedAtNotification = new List<long[]>();
+        void OnChanged(object? sender, EventArgs args)
+        {
+            changed++;
+            // Consumers must see a complete saved batch, never one notification
+            // per song or an event raised before persistence has finished.
+            persistedAtNotification.Add(new LibraryStore(directory).Favorites.Select(track => track.Id).ToArray());
+        }
+        library.Changed += OnChanged;
+        try
+        {
+            library.SetFavorites(new[] { first, third, new Track { Id = 1, Title = "重复副本" }, second, new Track { Id = 0 } }, true);
+            Program.Check(changed == 1, "A favorite batch must raise Changed once.");
+            Program.Check(library.Favorites.Select(track => track.Id).SequenceEqual(new long[] { 1, 3, 2 }),
+                "A favorite batch lost selected order, duplicated an existing song, or accepted an invalid ID.");
+            Program.Check(library.LastSaveError is null && persistedAtNotification[0].SequenceEqual(new long[] { 1, 3, 2 }),
+                "Changed was raised before the entire favorite batch was durably saved.");
+            var saved = new LibraryStore(directory).Favorites;
+            Program.Check(saved[0].Title == first.Title && saved[1].Artist == third.Artist && saved[2].Title == second.Title,
+                "Batch favorite deduplication replaced original metadata or lost persisted song metadata.");
+
+            library.SetFavorites(new[] { second, first, third, first }, true);
+            library.SetFavorites(Array.Empty<Track>(), true);
+            Program.Check(changed == 1 && library.Favorites.Select(track => track.Id).SequenceEqual(new long[] { 1, 3, 2 }),
+                "An unchanged or empty batch reordered favorites or raised a redundant notification.");
+
+            library.SetFavorites(new[] { third, third, new Track { Id = 99 } }, false);
+            Program.Check(changed == 2 && persistedAtNotification[1].SequenceEqual(new long[] { 1, 2 }),
+                "Batch removal did not preserve survivor order and persist before one Changed event.");
+            library.SetFavorites(new[] { third, new Track { Id = 99 } }, false);
+            Program.Check(changed == 2, "Removing absent favorites raised a redundant notification.");
+            library.SetFavorites(new[] { second, first, second }, false);
+            Program.Check(changed == 3 && persistedAtNotification[2].Length == 0 && new LibraryStore(directory).Favorites.Count == 0,
+                "Removing the remaining favorite batch was not persisted once.");
+        }
+        finally { library.Changed -= OnChanged; }
     }
 }

@@ -43,7 +43,7 @@ namespace LumaMsiChecks {
 '@
 }
 $repoRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
-if (-not $PackagePath) { $PackagePath = Join-Path $repoRoot 'artifacts\msi\LumaMusic_1.0.2_x64.msi' }
+if (-not $PackagePath) { $PackagePath = Join-Path $repoRoot 'artifacts\msi\LumaMusic_1.0.3_x64.msi' }
 $PackagePath = (Resolve-Path -LiteralPath $PackagePath).Path
 $workPath = Join-Path $repoRoot '.build\msi'
 $targetPath = [IO.Path]::GetFullPath((Join-Path $repoRoot '.build\msi-smoke-target'))

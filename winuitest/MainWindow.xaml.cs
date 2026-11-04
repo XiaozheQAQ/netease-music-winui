@@ -98,6 +98,7 @@ public sealed partial class MainWindow : Window
         TrackList.ItemsSource = _tracks;
         TrackList.ContainerContentChanging += TrackContainer_Changing;
         HomeSongs.ContainerContentChanging += TrackContainer_Changing;
+        QueueList.ContainerContentChanging += TrackContainer_Changing;
         _toastTimer.Tick += async (_, _) => { _toastTimer.Stop(); await _motion.HideAsync(Toast, offset: 8, durationMs: 260); };
         _sessionTimer.Tick += (_, _) => SaveSession();
         ThemeSelector.SelectedIndex = (int)_library.Theme;
@@ -115,6 +116,7 @@ public sealed partial class MainWindow : Window
         NowPlaying.NextRequested += async (_, _) => await _player.NextAsync();
         NowPlaying.FavoriteRequested += (_, _) => PlayerFavorite_Click(PlayerFavorite, new RoutedEventArgs());
         NowPlaying.SeekRequested += (_, seconds) => SeekTo(seconds);
+        NowPlaying.LyricSeekRequested += (_, seconds) => SeekLyricAndPlay(seconds);
         NowPlaying.VolumeRequested += (_, volume) => VolumeSlider.Value = volume * 100;
         NowPlaying.LyricCorrectionRequested += (_, offsetMs) =>
         {
@@ -146,6 +148,7 @@ public sealed partial class MainWindow : Window
         _pageRequest?.Dispose();
         _pageRequest = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _page = page;
+        ResetCollectionHeader();
         _inspectorOpen = false;
         _motion.Cancel(Inspector, visible: false);
         _motion.Cancel(PageBody, visible: true);
@@ -296,6 +299,7 @@ public sealed partial class MainWindow : Window
         {
             var playlist = await _client.GetPlaylistAsync(id, token);
             token.ThrowIfCancellationRequested();
+            SetActivePlaylist(playlist);
             ShowTracks(playlist.Title, playlist.Subtitle + $" · 已加载 {playlist.Tracks.Count} 首", playlist.Tracks, "CURATED PLAYLIST");
             SetImage(CollectionCover, playlist.ArtworkUrl);
             CollectionCoverBorder.Visibility = Visibility.Visible;
@@ -350,13 +354,7 @@ public sealed partial class MainWindow : Window
         if (_home?.NewSongs.FirstOrDefault() is Track track) await _player.PlayAsync(track, _home.NewSongs);
         else ShowToast("暂无新歌");
     }
-    private async void TrackList_ItemClick(object sender, ItemClickEventArgs e)
-    {
-        if (e.ClickedItem is Track track)
-            await _player.PlayAsync(track, ReferenceEquals(sender, HomeSongs) ? _home?.NewSongs : _tracks);
-    }
     private async void PlayAll_Click(object sender, RoutedEventArgs e) { if (_tracks.FirstOrDefault() is Track track) await _player.PlayAsync(track, _tracks); }
-    private async void QueueList_ItemClick(object sender, ItemClickEventArgs e) { if (e.ClickedItem is Track track) await _player.PlayAsync(track); }
     private void RemoveQueue_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: Track track }) return;
@@ -388,7 +386,11 @@ public sealed partial class MainWindow : Window
     private void TrackContainer_Changing(ListViewBase sender, ContainerContentChangingEventArgs args)
     {
         if (args.InRecycleQueue) return;
-        args.RegisterUpdateCallback((_, updated) => UpdateTrackHearts(updated.ItemContainer));
+        args.RegisterUpdateCallback((_, updated) =>
+        {
+            UpdateTrackHearts(updated.ItemContainer);
+            UpdatePlayingTrackIndicators(updated.ItemContainer);
+        });
     }
     private void PlayerFavorite_Click(object sender, RoutedEventArgs e) { if (_player.CurrentTrack is Track track) ToggleFavorite(track); }
     private void ToggleFavorite(Track track)
@@ -420,19 +422,6 @@ public sealed partial class MainWindow : Window
             else UpdateTrackHearts(child);
         }
     }
-    private void TrackMenu_Click(object sender, RoutedEventArgs e)
-    {
-        var button = (Button)sender;
-        if (button.Tag is not Track track) return;
-        var menu = new MenuFlyout();
-        var add = new MenuFlyoutItem { Text = "加入待播清单", Icon = new FilledIcon { Glyph = FilledIcons.Add } };
-        add.Click += (_, _) => { _player.AddToQueue(track); ShowToast("已加入待播清单"); };
-        var favorite = new MenuFlyoutItem { Text = _library.IsFavorite(track.Id) ? "取消收藏" : "收藏歌曲", Icon = new FilledIcon { Glyph = FilledIcons.HeartOff } };
-        favorite.Click += (_, _) => ToggleFavorite(track);
-        menu.Items.Add(add);
-        menu.Items.Add(favorite);
-        menu.ShowAt(button);
-    }
 
     private void Player_StateChanged(object? sender, EventArgs e)
     {
@@ -444,8 +433,7 @@ public sealed partial class MainWindow : Window
         RepeatIcon.Foreground = ThemeBrush(_player.Repeat != RepeatMode.Off ? "LumaAccentTextBrush" : "LumaTextTertiaryBrush");
         RepeatIcon.Glyph = _player.Repeat == RepeatMode.One ? FilledIcons.RepeatOne : FilledIcons.Repeat;
         ToolTipService.SetToolTip(RepeatButton, _player.Repeat switch { RepeatMode.All => "列表循环", RepeatMode.One => "单曲循环", _ => "循环关闭" });
-        PreviewBadge.Visibility = _player.IsPreview || !string.IsNullOrEmpty(_player.Quality) ? Visibility.Visible : Visibility.Collapsed;
-        PreviewBadge.Text = _player.IsPreview ? "试听" : _player.Quality switch { "standard" => "标准", "higher" => "较高", "exhigh" => "极高", "lossless" => "无损", "hires" => "Hi-Res", _ => "" };
+        PlayerQualityBadge.Visibility = _player.IsPreview ? Visibility.Visible : Visibility.Collapsed;
         NowPlaying.UpdatePlaybackModes(_player.Shuffle, _player.Repeat);
         if (track is not null && track.Id != _displayedTrackId)
         {
@@ -472,7 +460,7 @@ public sealed partial class MainWindow : Window
         DurationLabel.Text = FormatTime(_player.Duration);
         var signature = string.Join(",", _player.Queue.Select(item => item.Id));
         if (signature != _queueSignature) { _queueSignature = signature; QueueList.ItemsSource = _player.Queue.ToList(); QueueCountLabel.Text = $"{_player.Queue.Count} 首歌曲"; SaveSession(); }
-        QueueList.SelectedItem = _player.Queue.FirstOrDefault(item => item.Id == track?.Id);
+        UpdatePlayingTrackIndicators(QueueList);
         QueueEmptyState.Visibility = _inspectorOpen && _queueVisible && _player.Queue.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         HighlightLyric();
         UpdateNowPlaying();
@@ -501,7 +489,7 @@ public sealed partial class MainWindow : Window
             {
                 var text = new TextBlock { Text = line.Text, FontSize = 19, TextWrapping = TextWrapping.Wrap, Foreground = ThemeBrush("LumaLyricMutedBrush") };
                 var button = new Button { Content = text, HorizontalContentAlignment = HorizontalAlignment.Stretch, HorizontalAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(0, 3, 0, 3), Background = new SolidColorBrush(Colors.Transparent), BorderThickness = new Thickness(0), Tag = line.TimeMs };
-                button.Click += (_, _) => SeekTo(LyricTiming.ToPlaybackPosition(TimeSpan.FromMilliseconds(line.TimeMs),
+                button.Click += (_, _) => SeekLyricAndPlay(LyricTiming.ToPlaybackPosition(TimeSpan.FromMilliseconds(line.TimeMs),
                     _player.LyricOffset, _library.GetLyricOffsetMs(id), _player.Duration).TotalSeconds);
                 LyricsPanel.Children.Add(button);
             }
@@ -545,6 +533,11 @@ public sealed partial class MainWindow : Window
     {
         NowPlaying.NotifySeek();
         _player.Seek(seconds);
+    }
+    private void SeekLyricAndPlay(double seconds)
+    {
+        NowPlaying.NotifySeek();
+        _player.SeekAndPlay(seconds);
     }
     private void SeekSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e) { if (!_updatingSeek && _player is not null) SeekTo(e.NewValue); }
     private void VolumeSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
@@ -691,9 +684,7 @@ public sealed partial class MainWindow : Window
     }
     private void SyncTrackSelection()
     {
-        var id = _player.CurrentTrack?.Id;
-        TrackList.SelectedItem = _tracks.FirstOrDefault(item => item.Id == id);
-        HomeSongs.SelectedItem = (HomeSongs.ItemsSource as IEnumerable<Track>)?.FirstOrDefault(item => item.Id == id);
+        UpdatePlayingTrackIndicators();
     }
     private void ThemeSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {

@@ -22,8 +22,27 @@ internal static class AccountChecks
         var login = await client.SetSessionAsync(authorization.Cookie);
         Program.Check(login.Profile is { Id: 123, Nickname: "测试账号", VipType: 11 }, "Account profile model failed.");
         var playlists = await client.GetUserPlaylistsAsync(123);
-        Program.Check(playlists.More && playlists.Playlists is [{ Id: 456, TrackCount: 7 }], "Playlist page model failed.");
+        Program.Check(playlists.More && playlists.Playlists is [{ Id: 456, CreatorId: 123, TrackCount: 7 }], "Playlist page model failed.");
+        Program.Check(playlists.Playlists[0].IsOwnedBy(123) && !playlists.Playlists[0].IsOwnedBy(9) && !new MusicPlaylist().IsOwnedBy(0), "Playlist ownership check failed closed.");
+        Program.Check((await client.GetPlaylistAsync(456)).IsOwnedBy(123), "Playlist detail lost its owner.");
         Program.Check(!(await client.GetUserPlaylistsAsync(123, 50)).More, "Playlist pagination parameters were lost.");
+        await client.AddPlaylistTracksAsync(456, new long[] { 1, 1, 2 });
+        await client.RemovePlaylistTracksAsync(456, Enumerable.Range(1, 1813).Select(id => (long)id));
+        var invalidRejected = false;
+        try { await client.AddPlaylistTracksAsync(456, new long[] { -1 }); }
+        catch (ArgumentException) { invalidRejected = true; }
+        Program.Check(invalidRejected, "Invalid mutation IDs reached IPC.");
+        var partialReported = false;
+        try { await client.AddPlaylistTracksAsync(456, Enumerable.Range(1, 500).Select(id => (long)id).Append(9999)); }
+        catch (InvalidOperationException error) { partialReported = error.Message.Contains("500") && error.Message.Contains("刷新"); }
+        Program.Check(partialReported, "Partial playlist mutation did not tell the caller to refresh.");
+        using (var cancellation = new CancellationTokenSource(30))
+        {
+            var uncertainReported = false;
+            try { await client.AddPlaylistTracksAsync(456, new long[] { 8888 }, cancellation.Token); }
+            catch (InvalidOperationException error) { uncertainReported = error.Message.Contains("无法确认") && error.Message.Contains("刷新"); }
+            Program.Check(uncertainReported, "Canceled remote mutation was silently treated as never submitted.");
+        }
         client.PreferredQuality = "hires";
         var stream = await client.ResolveTrackAsync(1);
         Program.Check(stream.Quality == "hires" && !stream.IsPreview, "Authenticated quality preference was not passed to source.");
@@ -47,7 +66,7 @@ internal static class AccountChecks
         try { await host.RequestAsync("crash"); }
         catch (InvalidOperationException) { }
         Program.Check((await client.GetAccountStatusAsync()).Profile is null, "An invalid session revived the prior account after restart.");
-        Console.WriteLine("PASS account: typed QR/profile/playlists, quality, translated lyrics, private child-session recovery, logout/invalid-session isolation");
+        Console.WriteLine("PASS account: typed QR/profile/playlists, ownership, batched mutations, partial failure, quality, translated lyrics, private child-session recovery, logout/invalid-session isolation");
     }
 
     private static async Task VerifyProtectedStorageAsync()

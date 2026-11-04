@@ -27,6 +27,7 @@ public sealed class Track
 public sealed class MusicPlaylist
 {
     public long Id { get; set; }
+    public long CreatorId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Subtitle { get; set; } = string.Empty;
     public string ArtworkUrl { get; set; } = string.Empty;
@@ -34,6 +35,8 @@ public sealed class MusicPlaylist
     public long PlayCount { get; set; }
     [JsonIgnore]
     public string PlayCountLabel => PlayCount >= 100000000 ? $"{PlayCount / 100000000d:0.#}亿" : PlayCount >= 10000 ? $"{PlayCount / 10000d:0.#}万" : PlayCount.ToString("N0");
+
+    public bool IsOwnedBy(long userId) => userId > 0 && CreatorId == userId;
 }
 
 public sealed class HomeFeed
@@ -51,10 +54,13 @@ public sealed class SearchResult
 public sealed class PlaylistDetail
 {
     public long Id { get; set; }
+    public long CreatorId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Subtitle { get; set; } = string.Empty;
     public string ArtworkUrl { get; set; } = string.Empty;
     public List<Track> Tracks { get; set; } = new();
+
+    public bool IsOwnedBy(long userId) => userId > 0 && CreatorId == userId;
 }
 
 public sealed class StreamInfo

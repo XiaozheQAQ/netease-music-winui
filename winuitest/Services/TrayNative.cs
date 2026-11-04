@@ -1,7 +1,5 @@
-using Microsoft.UI.Xaml;
 using System;
 using System.Runtime.InteropServices;
-using Windows.Graphics;
 
 namespace winuitest.Services;
 
@@ -9,6 +7,8 @@ internal static class TrayNative
 {
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     internal delegate nint WindowProcedure(nint window, uint message, nuint wParam, nint lParam);
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+    internal delegate nint MessageFilter(int code, nuint wParam, nint lParam);
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     internal struct WindowClass
@@ -51,44 +51,41 @@ internal static class TrayNative
     }
     [StructLayout(LayoutKind.Sequential)]
     private struct MonitorInfo { internal uint Size; internal Rect Monitor, Work; internal uint Flags; }
-
-    internal static void SetRoundedCorners(nint window)
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct PopupParameters { internal uint Size; internal Rect Exclude; }
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct Message
     {
-        var preference = 2;
-        DwmSetWindowAttribute(window, 33, ref preference, sizeof(int));
+        internal nint Window;
+        internal uint Id;
+        internal nuint WParam;
+        internal nint LParam;
+        internal uint Time;
+        internal Point Point;
+        internal uint Private;
     }
 
-    internal static bool ForegroundBelongsTo(nint window)
+    internal static uint TrackMenu(nint menu, nint owner, Rect anchor)
     {
-        for (var current = GetForegroundWindow(); current != 0; current = GetWindow(current, 4))
-            if (current == window) return true;
-        return false;
-    }
-
-    internal static void PositionMenu(Window window, Rect anchor, int widthDip, int heightDip)
-    {
-        var middle = new Point { X = anchor.Left + (anchor.Right - anchor.Left) / 2, Y = anchor.Top + (anchor.Bottom - anchor.Top) / 2 };
-        var monitor = MonitorFromPoint(middle, 2);
+        var point = new Point { X = anchor.Left + (anchor.Right - anchor.Left) / 2, Y = anchor.Top + (anchor.Bottom - anchor.Top) / 2 };
         var info = new MonitorInfo { Size = (uint)Marshal.SizeOf<MonitorInfo>() };
-        if (!GetMonitorInfo(monitor, ref info)) return;
-        var handle = WinRT.Interop.WindowNative.GetWindowHandle(window);
-        var dpi = GetDpiForWindow(handle);
-        if (GetDpiForMonitor(monitor, 0, out var monitorDpi, out _) == 0) dpi = monitorDpi;
-        var scale = Math.Max(1, dpi) / 96d;
-        var gap = (int)Math.Round(8 * scale);
-        var width = Math.Min((int)Math.Round(widthDip * scale), info.Work.Right - info.Work.Left - 2 * gap);
-        var height = Math.Min((int)Math.Round(heightDip * scale), info.Work.Bottom - info.Work.Top - 2 * gap);
-        var x = anchor.Right - width;
-        var y = anchor.Top - height - gap;
-        if (anchor.Bottom <= info.Work.Top + gap) y = anchor.Bottom + gap;
-        else if (anchor.Left >= info.Work.Right - gap) { x = anchor.Left - width - gap; y = middle.Y - height / 2; }
-        else if (anchor.Right <= info.Work.Left + gap) { x = anchor.Right + gap; y = middle.Y - height / 2; }
-        x = Math.Clamp(x, info.Work.Left + gap, Math.Max(info.Work.Left + gap, info.Work.Right - width - gap));
-        y = Math.Clamp(y, info.Work.Top + gap, Math.Max(info.Work.Top + gap, info.Work.Bottom - height - gap));
-        window.AppWindow.MoveAndResize(new RectInt32(x, y, width, height));
+        var monitor = MonitorFromPoint(point, 2);
+        var above = !GetMonitorInfo(monitor, ref info) || point.Y > info.Work.Top + (info.Work.Bottom - info.Work.Top) / 2;
+        var alignRight = GetSystemMetrics(40) != 0; // SM_MENUDROPALIGNMENT honors the user's handedness.
+        var x = alignRight ? anchor.Right : anchor.Left;
+        var y = above ? anchor.Top : anchor.Bottom;
+        // Native menus clamp to the monitor and avoid the tray icon. Animation is
+        // Windows' own fade/slide and automatically honors reduced-motion settings.
+        var flags = 0x100u | 0x2u | 0x40u | (alignRight ? 0x8u : 0u) | (above ? 0x20u | 0x2000u : 0x1000u);
+        var parameters = new PopupParameters { Size = (uint)Marshal.SizeOf<PopupParameters>(), Exclude = anchor };
+        return TrackPopupMenuEx(menu, flags, x, y, owner, ref parameters);
     }
+
+    internal static bool ShowMenuOwner(nint owner, Rect anchor) =>
+        SetWindowPos(owner, 0, anchor.Left, anchor.Top, 0, 0, 0x4 | 0x10 | 0x40);
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] internal static extern nint GetModuleHandle(string? moduleName);
+    [DllImport("kernel32.dll")] internal static extern uint GetCurrentThreadId();
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] internal static extern ushort RegisterClassEx(ref WindowClass windowClass);
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] internal static extern nint CreateWindowEx(uint exStyle, string className, string title, uint style, int x, int y, int width, int height, nint parent, nint menu, nint instance, nint parameter);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] internal static extern bool UnregisterClass(string className, nint instance);
@@ -101,11 +98,27 @@ internal static class TrayNative
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] internal static extern uint RegisterWindowMessage(string message);
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, EntryPoint = "Shell_NotifyIconW")] [return: MarshalAs(UnmanagedType.Bool)] internal static extern bool ShellNotifyIcon(uint message, ref NotifyIconData data);
     [DllImport("shell32.dll", EntryPoint = "Shell_NotifyIconGetRect")] internal static extern int ShellNotifyIconGetRect(ref IconIdentifier identifier, out Rect rectangle);
-    [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(nint window, uint attribute, ref int value, int size);
-    [DllImport("user32.dll")] private static extern nint GetForegroundWindow();
-    [DllImport("user32.dll")] private static extern nint GetWindow(nint window, uint command);
     [DllImport("user32.dll")] private static extern nint MonitorFromPoint(Point point, uint flags);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern bool GetMonitorInfo(nint monitor, ref MonitorInfo information);
-    [DllImport("user32.dll")] private static extern uint GetDpiForWindow(nint window);
-    [DllImport("shcore.dll")] private static extern int GetDpiForMonitor(nint monitor, uint type, out uint dpiX, out uint dpiY);
+    [DllImport("user32.dll", SetLastError = true)] internal static extern nint CreatePopupMenu();
+    [DllImport("user32.dll")] internal static extern bool DestroyMenu(nint menu);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] internal static extern bool AppendMenu(nint menu, uint flags, nuint id, string? text);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] internal static extern bool ModifyMenu(nint menu, uint id, uint flags, nuint newId, string text);
+    [DllImport("user32.dll")] internal static extern uint EnableMenuItem(nint menu, uint id, uint flags);
+    [DllImport("user32.dll")] internal static extern bool SetMenuDefaultItem(nint menu, uint item, [MarshalAs(UnmanagedType.Bool)] bool byPosition);
+    [DllImport("user32.dll")] internal static extern bool CheckMenuRadioItem(nint menu, uint first, uint last, uint selected, uint flags);
+    [DllImport("user32.dll")] internal static extern int GetMenuItemCount(nint menu);
+    [DllImport("user32.dll")] internal static extern bool DeleteMenu(nint menu, uint position, uint flags);
+    [DllImport("user32.dll")] private static extern uint TrackPopupMenuEx(nint menu, uint flags, int x, int y, nint owner, ref PopupParameters parameters);
+    [DllImport("user32.dll")] internal static extern bool EndMenu();
+    [DllImport("user32.dll")] internal static extern bool SetForegroundWindow(nint window);
+    [DllImport("user32.dll")] internal static extern nint GetForegroundWindow();
+    [DllImport("user32.dll")] internal static extern bool IsWindowVisible(nint window);
+    [DllImport("user32.dll")] internal static extern bool ShowWindow(nint window, int command);
+    [DllImport("user32.dll", SetLastError = true)] private static extern bool SetWindowPos(nint window, nint insertAfter, int x, int y, int width, int height, uint flags);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] internal static extern bool PostMessage(nint window, uint message, nuint wParam, nint lParam);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] internal static extern nint SetWindowsHookEx(int type, MessageFilter callback, nint module, uint thread);
+    [DllImport("user32.dll")] internal static extern bool UnhookWindowsHookEx(nint hook);
+    [DllImport("user32.dll")] internal static extern nint CallNextHookEx(nint hook, int code, nuint wParam, nint lParam);
+    [DllImport("user32.dll")] internal static extern short GetKeyState(int key);
 }

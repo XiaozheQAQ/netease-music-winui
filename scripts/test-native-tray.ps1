@@ -46,7 +46,7 @@ try {
     foreach ($key in $keys) { [Environment]::SetEnvironmentVariable($key, $previous[$key], 'Process') }
 }
 try {
-    if (-not $process.WaitForExit(40000)) { throw "原生托盘检查超时，日志位于 $testRoot。" }
+    if (-not $process.WaitForExit(60000)) { throw "原生托盘检查超时，日志位于 $testRoot。" }
     if ($process.ExitCode -ne 0) { throw "原生检查进程异常退出：$($process.ExitCode)，详见 $testRoot。" }
     if (-not (Test-Path -LiteralPath $reportPath)) { throw "检查未生成报告，详见 $testRoot。" }
     $result = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json

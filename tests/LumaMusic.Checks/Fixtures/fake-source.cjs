@@ -15,7 +15,17 @@ input.on('line', line => {
   if (request.method === 'authLogout') { sessionCookie = ''; return reply({}); }
   if (request.method === 'authQrCreate') return reply({ key: 'fixture-key', qrImage: 'data:image/png;base64,AA==', qrUrl: 'https://music.163.com/login?codekey=fixture-key' });
   if (request.method === 'authQrCheck') return reply({ code: 803, message: '授权成功', cookie: 'fixture-session' });
-  if (request.method === 'userPlaylists') return reply({ playlists: [{ id: 456, title: '我的歌单', trackCount: 7 }], more: request.params.offset === 0 });
+  if (request.method === 'userPlaylists') return reply({ playlists: [{ id: 456, creatorId: 123, title: '我的歌单', trackCount: 7 }], more: request.params.offset === 0 });
+  if (request.method === 'playlist') return reply({ id: 456, creatorId: 123, title: '我的歌单', tracks: [] });
+  if (request.method === 'playlistTracks') {
+    const { id, operation, trackIds } = request.params;
+    if (!sessionCookie || !['add', 'del'].includes(operation) || id !== 456 || !Array.isArray(trackIds) ||
+      trackIds.length > 500 || new Set(trackIds).size !== trackIds.length || trackIds.some(id => !Number.isSafeInteger(id) || id <= 0))
+      return process.stdout.write(JSON.stringify({ id: request.id, error: { code: 'FIXTURE_INVALID', message: 'Invalid mutation request' } }) + '\n');
+    if (trackIds.includes(9999)) return process.stdout.write(JSON.stringify({ id: request.id, error: { code: 'FIXTURE_FAILURE', message: 'Mutation rejected' } }) + '\n');
+    if (trackIds.includes(8888)) return setTimeout(() => reply({ count: trackIds.length }), 150);
+    return reply({ count: trackIds.length });
+  }
   if (request.method === 'stream') return reply({ url: 'https://example.test/audio.flac', quality: request.params.quality, isPreview: !sessionCookie });
   if (request.method === 'lyrics') return reply({ lines: [{ timeMs: 1000, durationMs: 500, text: '声', translation: '声音', romanization: 'koe', words: [{ startMs: 1000, durationMs: 500, text: '声' }] }] });
   if (request.method === 'crash') process.exit(7);

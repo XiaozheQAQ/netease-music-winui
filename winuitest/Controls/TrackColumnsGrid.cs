@@ -42,12 +42,12 @@ public sealed class TrackColumnsGrid : Grid
     private void SetColumns(bool showAlbum)
     {
         _albumVisible = showAlbum;
-        ColumnSpacing = showAlbum ? 16 : 12;
+        ColumnSpacing = showAlbum ? 14 : 10;
         ColumnDefinitions.Clear();
-        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) });
+        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });
         ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
         if (showAlbum) ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) });
+        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) });
         ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
         ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
     }

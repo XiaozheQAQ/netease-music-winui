@@ -107,7 +107,7 @@ public sealed partial class MainWindow
         // Very small work areas retain the mute button and keyboard volume controls.
         VolumeSlider.Width = Math.Clamp(playerSideWidth - 118, 40, compact ? 68 : 88);
         VolumeSlider.Visibility = playerSideWidth >= 158 ? Visibility.Visible : Visibility.Collapsed;
-        CollectionCoverBorder.Width = CollectionCoverBorder.Height = Root.ActualHeight < 690 ? 108 : 136;
+        CollectionCoverBorder.Width = CollectionCoverBorder.Height = Root.ActualHeight < 690 ? 104 : 120;
         PageTitle.FontSize = compact ? 28 : 32;
         var shortWindow = Root.ActualHeight < 700;
         PlayerBarRow.Height = new GridLength(shortWindow ? 92 : 96);

@@ -26,9 +26,17 @@ function loadApi() {
   const root = path.dirname(require.resolve('@neteasecloudmusicapienhanced/api/package.json'));
   // Load only required API modules. No Express, server, or port is created.
   const request = require(path.join(root, 'util/request.js'));
+  const createOption = require(path.join(root, 'util/option.js'));
   const names = ['personalized', 'personalized_newsong', 'cloudsearch', 'playlist_detail', 'song_detail', 'song_url', 'song_url_v1', 'lyric', 'lyric_new',
     'login_qr_key', 'login_qr_create', 'login_qr_check', 'login_status', 'logout', 'user_playlist'];
   const modules = new Map(names.map(name => [name, require(path.join(root, 'module', `${name}.js`))]));
+  // Same endpoint/parameters as the SDK's playlist_tracks module, but issue only
+  // one mutation. Its 512 workaround repeats track IDs and retries the write;
+  // keep an uncertain result visible instead of silently editing twice.
+  modules.set('playlist_tracks', params => request('/api/playlist/manipulate/tracks', {
+    op: params.op, pid: params.pid,
+    trackIds: JSON.stringify(params.tracks.split(',')), imme: 'true',
+  }, createOption(params)));
   return (name, params) => {
     if (!modules.has(name)) throw new Error('Unsupported SDK module');
     return modules.get(name)(params, request);

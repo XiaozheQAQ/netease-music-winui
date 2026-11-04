@@ -243,15 +243,17 @@ public sealed class MotionCoordinator : IDisposable
 
         var batch = compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
         state.Batch = batch;
-        state.CompletedHandler = (_, _) =>
+        void CompleteTransition()
         {
-            if (_disposed || state.Generation != generation || !ReferenceEquals(state.Batch, batch)) return;
+            if (_disposed || state.Generation != generation || !ReferenceEquals(state.Batch, batch)
+                || !ReferenceEquals(state.Completion, completion)) return;
             ReleaseBatch(state);
             StopVisual(state);
             Settle(element, state, visible);
             state.Completion = null;
             completion.TrySetResult(true);
-        };
+        }
+        state.CompletedHandler = (_, _) => CompleteTransition();
         batch.Completed += state.CompletedHandler;
         try
         {
@@ -266,16 +268,24 @@ public sealed class MotionCoordinator : IDisposable
                 movement.InsertKeyFrame(1, visible ? Vector3.Zero : offset, easing);
                 state.Visual.StartAnimation("Translation", movement);
             }
+
+            // An occluded/minimized window may stop presenting compositor
+            // frames and never deliver Batch.Completed. Settle visibility on
+            // the UI dispatcher after a grace period, including hit testing,
+            // so a closing sheet cannot remain over the underlying page.
+            var fallback = _dispatcher.CreateTimer();
+            fallback.IsRepeating = false;
+            fallback.Interval = duration + TimeSpan.FromMilliseconds(250);
+            state.FallbackTimer = fallback;
+            state.FallbackHandler = (_, _) => CompleteTransition();
+            fallback.Tick += state.FallbackHandler;
+            fallback.Start();
         }
         catch
         {
             // A detached visual should not leave the UI invisible or its caller
             // awaiting a compositor completion that can no longer arrive.
-            ReleaseBatch(state);
-            StopVisual(state);
-            Settle(element, state, visible);
-            state.Completion = null;
-            completion.TrySetResult(true);
+            CompleteTransition();
         }
         finally
         {
@@ -348,6 +358,13 @@ public sealed class MotionCoordinator : IDisposable
 
     private static void ReleaseBatch(MotionState state)
     {
+        if (state.FallbackTimer is { } fallback)
+        {
+            fallback.Stop();
+            if (state.FallbackHandler is not null) fallback.Tick -= state.FallbackHandler;
+            state.FallbackTimer = null;
+        }
+        state.FallbackHandler = null;
         var batch = state.Batch;
         if (batch is null) return;
         if (state.CompletedHandler is not null) batch.Completed -= state.CompletedHandler;
@@ -408,6 +425,8 @@ public sealed class MotionCoordinator : IDisposable
         public TaskCompletionSource<bool>? Completion { get; set; }
         public CompositionScopedBatch? Batch { get; set; }
         public TypedEventHandler<object, CompositionBatchCompletedEventArgs>? CompletedHandler { get; set; }
+        public DispatcherQueueTimer? FallbackTimer { get; set; }
+        public TypedEventHandler<DispatcherQueueTimer, object>? FallbackHandler { get; set; }
     }
 
     private sealed class PressState

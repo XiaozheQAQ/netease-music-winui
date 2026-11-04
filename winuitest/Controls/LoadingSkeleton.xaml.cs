@@ -101,8 +101,8 @@ public sealed partial class LoadingSkeleton : UserControl
     {
         for (var index = 0; index < 7; index++)
         {
-            var row = new TrackColumnsGrid { Height = 72 };
-            var cover = Block(44, radius: 8);
+            var row = new TrackColumnsGrid { Height = 62 };
+            var cover = Block(40, radius: 8);
             cover.VerticalAlignment = VerticalAlignment.Center;
             TrackColumnsGrid.SetField(cover, TrackField.Cover);
             row.Children.Add(cover);

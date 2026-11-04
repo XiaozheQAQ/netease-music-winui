@@ -90,6 +90,7 @@ public sealed partial class NowPlayingView : UserControl
     public event EventHandler? ShuffleRequested;
     public event EventHandler? RepeatRequested;
     public event EventHandler<double>? SeekRequested;
+    public event EventHandler<double>? LyricSeekRequested;
     public event EventHandler<double>? VolumeRequested;
     public event EventHandler<int>? LyricCorrectionRequested;
     public FrameworkElement TitleBarRegion => HeaderDragArea;
@@ -296,7 +297,7 @@ public sealed partial class NowPlayingView : UserControl
                 var target = (line.TimeMs + _manualLyricOffsetMs) / 1000d - _lyricOffset;
                 if (!_hasTrack || _loading || target < 0 || (_isPreview && target > _duration)) return;
                 NotifySeek();
-                SeekRequested?.Invoke(this, target);
+                LyricSeekRequested?.Invoke(this, target);
             };
             _lyricButtons.Add(button);
             _lineVisuals.Add(visual);

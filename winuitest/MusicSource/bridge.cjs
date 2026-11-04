@@ -60,8 +60,10 @@ function trackOf(value) {
 }
 
 function playlistOf(value) {
+  const creatorId = Number(value.creator?.userId || value.userId || 0);
   return {
     id: Number(value.id),
+    creatorId: Number.isSafeInteger(creatorId) && creatorId > 0 ? creatorId : 0,
     title: value.name || '未命名歌单',
     subtitle: value.copywriter || value.description || '网易云音乐精选歌单',
     artworkUrl: artwork(value.picUrl || value.coverImgUrl),
@@ -270,6 +272,37 @@ function createBridge(api, options = {}) {
         const offset = Math.trunc(Math.max(0, Number(params.offset) || 0));
         const body = await invoke('user_playlist', { uid, offset, limit });
         return { playlists: (body.playlist || []).map(playlistOf), more: body.more === true };
+      }
+      case 'playlistTracks': {
+        if (!sessionCookie) throw new SourceError('请先登录网易云音乐。', 'LOGIN_REQUIRED');
+        const id = positiveId(params.id);
+        if (!['add', 'del'].includes(params.operation) || !Array.isArray(params.trackIds) ||
+            params.trackIds.length < 1 || params.trackIds.length > 500 ||
+            params.trackIds.some(value => !Number.isSafeInteger(value) || value <= 0))
+          throw new SourceError('请选择 1–500 首有效歌曲。', 'INVALID_ARGUMENT');
+        const ids = [...new Set(params.trackIds.map(positiveId))];
+        const version = sessionVersion;
+        const cookie = sessionCookie;
+        const ensureSession = () => {
+          if (version !== sessionVersion || cookie !== sessionCookie)
+            throw new SourceError('登录账号已改变，请刷新歌单确认结果。', 'SESSION_CHANGED');
+        };
+        // Resolve the current owner again rather than trusting a stale sidebar or
+        // a caller-provided user ID. No write happens before both checks finish.
+        const account = await accountStatus(cookie, version);
+        ensureSession();
+        if (!account.profile) throw new SourceError('登录已过期，请重新登录。', 'LOGIN_REQUIRED');
+        const detail = await invoke('playlist_detail', { id }, { cookie });
+        ensureSession();
+        if (!detail.playlist || playlistOf(detail.playlist).creatorId !== account.profile.id)
+          throw new SourceError('只能修改自己创建的歌单。', 'PLAYLIST_READ_ONLY');
+        const result = await invoke('playlist_tracks', { op: params.operation, pid: id, tracks: ids.join(',') }, { cookie });
+        ensureSession();
+        // A write needs an explicit acknowledgement. The generic reader also
+        // supports endpoints without a code field; that is unsafe for mutations.
+        if (Number(result?.code) !== 200)
+          throw new SourceError('歌单操作未得到确认，请刷新歌单检查结果。', 'MUTATION_UNCONFIRMED');
+        return { count: ids.length };
       }
       case 'discover': {
         const results = await Promise.allSettled([

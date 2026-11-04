@@ -48,6 +48,7 @@ public sealed partial class MainWindow
         }
         AttachTrackListScroller();
         UpdateTrackHeadingWidth();
+        UpdateCollectionHeader();
         QueueSearchViewportCheck();
     }
 
@@ -65,7 +66,9 @@ public sealed partial class MainWindow
 
     private void TrackList_SizeChanged(object sender, SizeChangedEventArgs e)
     {
+        if (TrackList.IsLoaded && e.NewSize.Height > 1) AttachTrackListScroller();
         UpdateTrackHeadingWidth();
+        UpdateCollectionHeader();
         QueueSearchViewportCheck();
     }
 
@@ -89,6 +92,7 @@ public sealed partial class MainWindow
 
     private void TrackList_ViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
     {
+        UpdateCollectionHeader();
         // Once append changes the extent, wait for layout rather than making a
         // second decision from the previous page's scroll metrics.
         if (!_searchViewportCheckPending) TryAppendSearchResults();
@@ -103,6 +107,19 @@ public sealed partial class MainWindow
 
     private void TrackList_LayoutUpdated(object? sender, object e)
     {
+        // A collapsed ListView can raise Loaded before its template creates the
+        // inner ScrollViewer. All track pages need that viewer for the sticky
+        // heading, even when search pagination has no work pending.
+        if (_trackListScroller is null && !_closed && TrackList.IsLoaded
+            && TracksView.Visibility == Visibility.Visible && TrackList.ActualHeight > 1)
+        {
+            AttachTrackListScroller();
+            if (_trackListScroller is not null)
+            {
+                UpdateTrackHeadingWidth();
+                UpdateCollectionHeader();
+            }
+        }
         if (!_searchViewportCheckPending) return;
         if (!CanAppendSearchResults)
         {

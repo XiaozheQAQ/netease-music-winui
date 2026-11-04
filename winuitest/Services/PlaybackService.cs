@@ -542,19 +542,46 @@ public sealed class PlaybackService : IDisposable
         RefreshPosition();
     });
 
-    public void AddToQueue(Track track) => Dispatch(() =>
+    public void SeekAndPlay(double seconds) => Dispatch(() =>
     {
-        if (!_queue.Any(item => item.Id == track.Id)) _queue.Add(track);
-        RaiseStateChanged();
+        if (CurrentTrack is null || IsLoading || !double.IsFinite(seconds) || seconds < 0) return;
+        if (_player.Source is null)
+        {
+            DispatchAsync(() => PlayCoreAsync(CurrentTrack, startPosition: TimeSpan.FromSeconds(seconds)));
+            return;
+        }
+        if (!_player.PlaybackSession.CanSeek) return;
+        Seek(seconds);
+        _player.Play();
     });
 
-    public void RemoveFromQueue(Track track) => Dispatch(() =>
+    public void AddToQueue(Track track) => AddToQueue(new[] { track });
+
+    public void AddToQueue(IEnumerable<Track> tracks)
     {
-        // Keep the current track until playback moves on, preserving a consistent next index.
-        if (track.Id == CurrentTrack?.Id) return;
-        _queue.RemoveAll(item => item.Id == track.Id);
-        RaiseStateChanged();
-    });
+        var snapshot = tracks.Where(track => track.Id > 0).ToArray();
+        Dispatch(() =>
+        {
+            var ids = _queue.Select(track => track.Id).ToHashSet();
+            var added = snapshot.Where(track => ids.Add(track.Id)).ToArray();
+            if (added.Length == 0) return;
+            _queue.AddRange(added);
+            RaiseStateChanged();
+        });
+    }
+
+    public void RemoveFromQueue(Track track) => RemoveFromQueue(new[] { track });
+
+    public void RemoveFromQueue(IEnumerable<Track> tracks)
+    {
+        var ids = tracks.Select(track => track.Id).ToHashSet();
+        Dispatch(() =>
+        {
+            // Keep the current track until playback moves on, preserving a consistent next index.
+            if (CurrentTrack is not null) ids.Remove(CurrentTrack.Id);
+            if (_queue.RemoveAll(item => ids.Contains(item.Id)) > 0) RaiseStateChanged();
+        });
+    }
 
     public void ClearQueue() => Dispatch(() =>
     {

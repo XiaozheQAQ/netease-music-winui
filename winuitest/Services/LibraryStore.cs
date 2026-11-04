@@ -157,6 +157,27 @@ public sealed class LibraryStore
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    public void SetFavorites(IEnumerable<Track> tracks, bool favorite)
+    {
+        ArgumentNullException.ThrowIfNull(tracks);
+        var snapshot = tracks.Where(track => track.Id > 0).DistinctBy(track => track.Id).ToArray();
+        var changed = false;
+        if (favorite)
+        {
+            var existing = _data.Favorites.Select(track => track.Id).ToHashSet();
+            var additions = snapshot.Where(track => existing.Add(track.Id)).ToArray();
+            if (additions.Length > 0) { _data.Favorites.InsertRange(0, additions); changed = true; }
+        }
+        else
+        {
+            var ids = snapshot.Select(track => track.Id).ToHashSet();
+            changed = _data.Favorites.RemoveAll(track => ids.Contains(track.Id)) > 0;
+        }
+        if (!changed) return;
+        Save();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
     public void ClearRecent()
     {
         _data.Recent.Clear();
