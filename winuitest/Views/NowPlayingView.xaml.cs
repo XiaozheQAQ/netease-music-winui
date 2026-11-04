@@ -85,6 +85,7 @@ public sealed partial class NowPlayingView : UserControl
     public event EventHandler? PreviousRequested;
     public event EventHandler? NextRequested;
     public event EventHandler? FavoriteRequested;
+    public event EventHandler? CopyTrackLinkRequested;
     public event EventHandler? CloseRequested;
     public event EventHandler? FullScreenRequested;
     public event EventHandler? QueueRequested;
@@ -102,6 +103,7 @@ public sealed partial class NowPlayingView : UserControl
         var previewChanged = _isPreview != isPreview;
         var trackChanged = _trackId != (track?.Id ?? 0);
         _hasTrack = track is not null;
+        CopyTrackLinkButton.IsEnabled = _hasTrack;
         _loading = isLoading;
         _isPreview = isPreview;
         _position = Math.Max(0, position.TotalSeconds);
@@ -151,7 +153,6 @@ public sealed partial class NowPlayingView : UserControl
         NextButton.IsEnabled = _hasTrack;
         FavoriteButton.IsEnabled = _hasTrack;
         TrackArtistButton.IsEnabled = _hasTrack && !string.IsNullOrWhiteSpace(track?.Artist);
-        FavoriteIcon.Glyph = FilledIcons.Heart;
         FavoriteIcon.Opacity = isFavorite ? 1 : 0.55;
         ToolTipService.SetToolTip(FavoriteButton, isFavorite ? "从喜欢的歌曲移除" : "添加到喜欢的歌曲");
         SourceCaption.Visibility = isPreview ? Visibility.Visible : Visibility.Collapsed;
@@ -176,7 +177,7 @@ public sealed partial class NowPlayingView : UserControl
         _repeatMode = repeat;
         RepeatIcon.Opacity = !shuffle && repeat == RepeatMode.Off ? 0.45 : 1;
         RepeatIcon.Glyph = shuffle ? FilledIcons.Shuffle : repeat == RepeatMode.One ? FilledIcons.RepeatOne : FilledIcons.Repeat;
-        RepeatButton.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(!shuffle && repeat == RepeatMode.Off ? (byte)0 : (byte)36, 255, 255, 255));
+        RepeatButton.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
         var label = shuffle ? "随机播放" : repeat switch { RepeatMode.All => "列表循环", RepeatMode.One => "单曲循环", _ => "顺序播放" };
         ToolTipService.SetToolTip(RepeatButton, label);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(RepeatButton, label + "，点击切换播放模式");
@@ -217,7 +218,9 @@ public sealed partial class NowPlayingView : UserControl
     {
         StopLyricTravelMotion();
         ReleaseLyricBlur();
-        _lines = lines.Where(line => !string.IsNullOrWhiteSpace(line.Text)).OrderBy(line => line.TimeMs).ToArray();
+        var visibleLines = lines.Where(line => !string.IsNullOrWhiteSpace(line.Text)).OrderBy(line => line.TimeMs).ToArray();
+        var instrumental = visibleLines.Length > 0 && visibleLines.All(line => IsInstrumentalMarker(line.Text));
+        _lines = instrumental ? Array.Empty<LyricLine>() : visibleLines;
         _activeLine = -1;
         _manualScrollHeld = false;
         _lyricPointerDown = false;
@@ -230,10 +233,12 @@ public sealed partial class NowPlayingView : UserControl
         _lyricButtons.Clear();
         _lineVisuals.Clear();
         LyricsStack.Children.Clear();
-        EmptyLyricsText.Text = emptyMessage;
+        PrepareLyricGaps();
+        EmptyLyricsText.Text = instrumental ? "纯音乐，请欣赏" : emptyMessage;
         EmptyLyricsPanel.Visibility = _lines.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         foreach (var line in _lines)
         {
+            InsertLyricGapBefore(_lyricButtons.Count);
             var visual = new LineVisual();
             FrameworkElement content;
             if (line.Words.Count > 0)
@@ -334,15 +339,22 @@ public sealed partial class NowPlayingView : UserControl
     private void HighlightCurrentLine(bool forceCenter = false, bool animateActive = true)
     {
         var timestamp = _lyricsClockMs;
+        var wasGapActive = _activeGapRow is not null;
+        if (UpdateLyricGap(timestamp)) forceCenter = true;
+        var gapActive = _activeGapRow is not null;
         var index = -1;
-        for (var i = 0; i < _lines.Count && _lines[i].TimeMs <= timestamp; i++) index = i;
-        var phraseAdvance = index > _activeLine && _activeLine >= 0;
+        if (!gapActive)
+            for (var i = 0; i < _lines.Count && _lines[i].TimeMs <= timestamp; i++) index = i;
+        var phraseAdvance = index > _activeLine && (_activeLine >= 0 || wasGapActive);
         if (index != _activeLine)
         {
             // Manual browsing lasts for the current phrase only. The next timed
             // phrase resumes following immediately, even if the song was paused.
-            if (_lyricPointerDown) _resumeAfterPointerRelease = true;
-            else _manualScrollHeld = false;
+            if (!gapActive)
+            {
+                if (_lyricPointerDown) _resumeAfterPointerRelease = true;
+                else _manualScrollHeld = false;
+            }
             _lyricBlurStateDirty = true;
             if (_activeLine >= 0 && _activeLine < _lineVisuals.Count) ResetLine(_lineVisuals[_activeLine]);
             _activeLine = index;
@@ -390,7 +402,8 @@ public sealed partial class NowPlayingView : UserControl
     {
         if (!IsLoaded || ActualWidth <= 0 || LyricsScroller.ViewportHeight <= 0) return;
         var target = 0d;
-        if (_activeLine >= 0 && _activeLine < _lyricButtons.Count)
+        if (TryGetGapScrollTarget(out var gapTarget)) target = gapTarget;
+        else if (_activeLine >= 0 && _activeLine < _lyricButtons.Count)
         {
             var line = _lyricButtons[_activeLine];
             if (line.ActualHeight <= 0) return;
@@ -798,6 +811,13 @@ public sealed partial class NowPlayingView : UserControl
     }
 
     private void Artwork_ImageFailed(object sender, ExceptionRoutedEventArgs e) => Artwork.Visibility = Visibility.Collapsed;
+    private static bool IsInstrumentalMarker(string text)
+    {
+        var label = string.Concat(text.Where(character => !char.IsWhiteSpace(character) && !char.IsPunctuation(character)));
+        return label is "纯音乐" or "纯音乐请欣赏" or "此歌曲为没有填词的纯音乐请您欣赏" or "此歌曲为纯音乐请欣赏"
+            || label.Equals("instrumental", StringComparison.OrdinalIgnoreCase);
+    }
+    private void CopyTrackLink_Click(object sender, RoutedEventArgs e) => CopyTrackLinkRequested?.Invoke(this, EventArgs.Empty);
     private void Close_Click(object sender, RoutedEventArgs e) => CloseRequested?.Invoke(this, EventArgs.Empty);
     private void FullScreen_Click(object sender, RoutedEventArgs e) => FullScreenRequested?.Invoke(this, EventArgs.Empty);
     private void Favorite_Click(object sender, RoutedEventArgs e) => FavoriteRequested?.Invoke(this, EventArgs.Empty);

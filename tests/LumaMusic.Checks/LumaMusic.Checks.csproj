@@ -10,7 +10,9 @@
     <Compile Include="../../winuitest/Services/NodeMusicHost.cs" Link="Product/NodeMusicHost.cs" />
     <Compile Include="../../winuitest/Services/NeteaseMusicClient.cs" Link="Product/NeteaseMusicClient.cs" />
     <Compile Include="../../winuitest/Services/LibraryStore.cs" Link="Product/LibraryStore.cs" />
+    <Compile Include="../../winuitest/Services/TrackShareLink.cs" Link="Product/TrackShareLink.cs" />
     <Compile Include="../../winuitest/Services/LyricTiming.cs" Link="Product/LyricTiming.cs" />
+    <Compile Include="../../winuitest/Services/LyricGapTimeline.cs" Link="Product/LyricGapTimeline.cs" />
     <Compile Include="../../winuitest/Views/Controls/LyricViewportLayout.cs" Link="Product/LyricViewportLayout.cs" />
     <Compile Include="../../winuitest/Views/Controls/LyricScrollMotion.cs" Link="Product/LyricScrollMotion.cs" />
     <Compile Include="../../winuitest/Services/AccountSessionStore.cs" Link="Product/AccountSessionStore.cs" />

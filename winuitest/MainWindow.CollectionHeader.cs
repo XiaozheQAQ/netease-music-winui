@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using System;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using Windows.Foundation;
 using winuitest.Models;
 
@@ -11,6 +12,8 @@ namespace winuitest;
 public sealed partial class MainWindow
 {
     private bool _collectionHeaderCompact;
+    private bool _collectionHeaderOccludesContent;
+    private int _collectionHeaderTransition;
     private bool _resetCollectionScroll;
     private PlaylistDetail? _activePlaylist;
     private double _collectionWheelTarget = double.NaN;
@@ -21,10 +24,13 @@ public sealed partial class MainWindow
     private void ResetCollectionHeader()
     {
         _activePlaylist = null;
+        _collectionHeaderTransition++;
         _collectionHeaderCompact = false;
+        _collectionHeaderOccludesContent = false;
         _resetCollectionScroll = true;
         _collectionWheelTarget = double.NaN;
         _motion.Cancel(CompactCollectionHeader, false);
+        RestoreCollectionContentClip();
         TrackList.SelectedItems.Clear();
         _trackListScroller?.ChangeView(null, 0, null, true);
     }
@@ -89,7 +95,23 @@ public sealed partial class MainWindow
         var compact = _trackListScroller.VerticalOffset >= threshold;
         if (_collectionHeaderCompact == compact) return;
         _collectionHeaderCompact = compact;
-        if (compact) _ = _motion.RevealAsync(CompactCollectionHeader, offset: -6, durationMs: 220);
-        else _ = _motion.HideAsync(CompactCollectionHeader, offset: -6, durationMs: 180);
+        var transition = ++_collectionHeaderTransition;
+        if (compact)
+        {
+            _collectionHeaderOccludesContent = true;
+            UpdateCollectionHeaderClipping();
+            _ = _motion.RevealAsync(CompactCollectionHeader, offset: -6, durationMs: 220);
+        }
+        else _ = HideCollectionHeaderAsync(transition);
+    }
+
+    private async Task HideCollectionHeaderAsync(int transition)
+    {
+        // Keep rows out of the transparent heading until its exit completes.
+        // A reverse scroll or page change invalidates this completion callback.
+        if (!await _motion.HideAsync(CompactCollectionHeader, offset: -6, durationMs: 180)
+            || _closed || transition != _collectionHeaderTransition) return;
+        _collectionHeaderOccludesContent = false;
+        RestoreCollectionContentClip();
     }
 }

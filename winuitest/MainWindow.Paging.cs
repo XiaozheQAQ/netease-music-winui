@@ -24,6 +24,7 @@ public sealed partial class MainWindow
 
     private void ResetSearchPaging()
     {
+        ResetPlaylistPaging();
         _searchHasMore = false;
         _searchPagingFailed = false;
         _searchViewportCheckPending = false;
@@ -57,6 +58,7 @@ public sealed partial class MainWindow
         TrackList.LayoutUpdated -= TrackList_LayoutUpdated;
         _trackPagingAttached = false;
         _searchViewportCheckPending = false;
+        ReleaseCollectionScrollParts();
         if (_trackListScroller is not null)
         {
             _trackListScroller.ViewChanged -= TrackList_ViewChanged;
@@ -93,6 +95,8 @@ public sealed partial class MainWindow
     private void TrackList_ViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
     {
         UpdateCollectionHeader();
+        PlaylistViewportChanged(e.IsIntermediate);
+        TryLoadVisiblePlaylistPages();
         // Once append changes the extent, wait for layout rather than making a
         // second decision from the previous page's scroll metrics.
         if (!_searchViewportCheckPending) TryAppendSearchResults();
@@ -119,6 +123,14 @@ public sealed partial class MainWindow
                 UpdateTrackHeadingWidth();
                 UpdateCollectionHeader();
             }
+        }
+        // Auto-hiding scrollbars and DPI/layout changes can alter the gutter
+        // without changing the shared column width or the list's scroll offset.
+        if (!_closed && TracksView.Visibility == Visibility.Visible)
+        {
+            UpdateCollectionHeaderClipping();
+            TryLoadVisiblePlaylistPages();
+            RefreshTrackLocator();
         }
         if (!_searchViewportCheckPending) return;
         if (!CanAppendSearchResults)

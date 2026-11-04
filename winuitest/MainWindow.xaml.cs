@@ -107,13 +107,13 @@ public sealed partial class MainWindow : Window
         ApplyTheme();
         Root.ActualThemeChanged += Root_ActualThemeChanged;
         _uiSettings.ColorValuesChanged += SystemColorsChanged;
-        MainNavigation.Loaded += (_, _) => { if (MainNavigation.SettingsItem is NavigationViewItem item) { item.Content = "设置"; item.Icon = new FilledIcon { Kind = "Settings" }; } };
+        InitializeSidebarNavigation();
         SearchBox.QueryIcon = new FilledIcon { Kind = "Search", FontSize = 16 };
         Closed += Window_Closed;
         InitializeShortcuts();
         NowPlaying.PlayPauseRequested += (_, _) => PlayPause_Click(PlayPauseButton, new RoutedEventArgs());
-        NowPlaying.PreviousRequested += async (_, _) => await _player.PreviousAsync();
-        NowPlaying.NextRequested += async (_, _) => await _player.NextAsync();
+        NowPlaying.PreviousRequested += (_, _) => Previous_Click(PlayPauseButton, new RoutedEventArgs());
+        NowPlaying.NextRequested += (_, _) => Next_Click(PlayPauseButton, new RoutedEventArgs());
         NowPlaying.FavoriteRequested += (_, _) => PlayerFavorite_Click(PlayerFavorite, new RoutedEventArgs());
         NowPlaying.SeekRequested += (_, seconds) => SeekTo(seconds);
         NowPlaying.LyricSeekRequested += (_, seconds) => SeekLyricAndPlay(seconds);
@@ -130,8 +130,10 @@ public sealed partial class MainWindow : Window
         NowPlaying.FullScreenRequested += (_, _) => SetLyricsFullScreen(!_lyricsFullScreen);
         NowPlaying.QueueRequested += (_, _) => TransportQueue_Click(ShuffleButton, new RoutedEventArgs());
         NowPlaying.ArtistRequested += async (_, anchor) => await OpenCurrentTrackArtistAsync(anchor);
+        NowPlaying.CopyTrackLinkRequested += (_, _) => { if (_player.CurrentTrack is Track track) CopyTrackLinks(new[] { track }); };
         NowPlaying.RepeatRequested += (_, _) => Repeat_Click(RepeatButton, new RoutedEventArgs());
         InitializeArtistUi();
+        InitializeTrackLocating();
         InitializeWindowChrome();
         SelectNav("discover");
         TodayLabel.Text = DateTime.Now.ToString("M月d日 dddd", CultureInfo.GetCultureInfo("zh-CN"));
@@ -175,7 +177,7 @@ public sealed partial class MainWindow : Window
 
     private void SelectNav(string page)
     {
-        MainNavigation.SelectedItem = page switch { "discover" => DiscoverNav, "favorites" => FavoritesNav, "recent" => RecentNav, "cloud" => CloudNav, "playlist" => FindSidebarPlaylistItem(_playlistId), "settings" => MainNavigation.SettingsItem, _ => null };
+        SynchronizeSidebarSelection(page);
         Breadcrumb.Text = page switch { "favorites" or "recent" => "本地", "playlist" => "歌单", "cloud" => "网易云音乐", "settings" => "设置", "search" => "搜索", "artist" => "歌手", "album" => "专辑", _ => "现在就听" };
     }
 
@@ -219,7 +221,7 @@ public sealed partial class MainWindow : Window
     private void UpdateEmptyState()
     {
         EmptyState.Visibility = !_pageLoading && _tracks.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        PlayAllButton.IsEnabled = _tracks.Count > 0;
+        PlayAllButton.IsEnabled = _tracks.Count > 0 && !_playIntentPreparing;
         EmptyTitle.Text = _page switch { "favorites" => "暂无收藏", "recent" => "暂无播放记录", "playlist" => "暂无歌曲", "search" when _query.Length > 0 => "未找到歌曲", _ => "搜索音乐" };
         EmptyDescription.Text = _page switch { "favorites" => "点击爱心收藏歌曲", "recent" => "播放过的歌曲会显示在这里", "playlist" => "稍后刷新试试", "search" when _query.Length > 0 => "试试其他关键词", _ => "输入歌曲或歌手" };
     }
@@ -294,9 +296,8 @@ public sealed partial class MainWindow : Window
 
     private async Task OpenPlaylistAsync(long id)
     {
-        var token = BeginPage("playlist");
         _playlistId = id;
-        SelectSidebarPlaylist(id);
+        var token = BeginPage("playlist");
         ShowTracks("歌单", "", Array.Empty<Track>(), "CURATED PLAYLIST");
         SetPageLoading(true);
         try
@@ -304,7 +305,7 @@ public sealed partial class MainWindow : Window
             var playlist = await _client.GetPlaylistAsync(id, token);
             token.ThrowIfCancellationRequested();
             SetActivePlaylist(playlist);
-            ShowTracks(playlist.Title, playlist.Subtitle + $" · 已加载 {playlist.Tracks.Count} 首", playlist.Tracks, "CURATED PLAYLIST");
+            ShowPlaylistTracks(playlist);
             SetImage(CollectionCover, playlist.ArtworkUrl);
             CollectionCoverBorder.Visibility = Visibility.Visible;
         }
@@ -320,17 +321,9 @@ public sealed partial class MainWindow : Window
         else ShowTracks("最近播放", "最近 100 首", _library.Recent, "RECENTLY PLAYED");
     }
 
-    private async void MainNavigation_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
+    private void MainNavigation_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
     {
-        if (args.IsSettingsInvoked) { BeginPage("settings"); return; }
-        var page = (args.InvokedItemContainer as NavigationViewItem)?.Tag as string;
-        if (page is null) return;
-        if (page.StartsWith("playlist:", StringComparison.Ordinal) && long.TryParse(page[9..], out var playlistId)) { await OpenPlaylistAsync(playlistId); return; }
-        if (page == "cloud") { await OpenCloudAsync(); return; }
-        if (page.StartsWith("mood:", StringComparison.Ordinal)) { await SearchAsync(page[5..]); return; }
-        if (page == "discover") await LoadHomeAsync();
-        else if (page == "search") await SearchAsync("");
-        else OpenLibrary(page);
+        QueueSidebarNavigation(args.IsSettingsInvoked ? "settings" : (args.InvokedItemContainer as NavigationViewItem)?.Tag as string);
     }
     private async void SearchBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args) => await SearchAsync(args.QueryText);
     private async void Mood_Click(object sender, RoutedEventArgs e) => await SearchAsync((string)((Button)sender).Tag);
@@ -360,7 +353,7 @@ public sealed partial class MainWindow : Window
         if (_home?.NewSongs.FirstOrDefault() is Track track) await _player.PlayAsync(track, _home.NewSongs);
         else ShowToast("暂无新歌");
     }
-    private async void PlayAll_Click(object sender, RoutedEventArgs e) { if (_tracks.FirstOrDefault() is Track track) await _player.PlayAsync(track, _tracks); }
+    private async void PlayAll_Click(object sender, RoutedEventArgs e) { if (!_playIntentPreparing && _tracks.FirstOrDefault() is Track track) await PlayTracksWithIntentAsync(track, _tracks); }
     private void RemoveQueue_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: Track track }) return;
@@ -368,8 +361,8 @@ public sealed partial class MainWindow : Window
         _player.RemoveFromQueue(track);
         ShowToast("已移出待播清单");
     }
-    private async void Previous_Click(object sender, RoutedEventArgs e) => await _player.PreviousAsync();
-    private async void Next_Click(object sender, RoutedEventArgs e) => await _player.NextAsync();
+    private async void Previous_Click(object sender, RoutedEventArgs e) { CancelPendingTrackPlayback(); await _player.PreviousAsync(); }
+    private async void Next_Click(object sender, RoutedEventArgs e) { CancelPendingTrackPlayback(); await _player.NextAsync(); }
     private async void PlayPause_Click(object sender, RoutedEventArgs e)
     {
         if (_player.CurrentTrack is null && _player.Queue.FirstOrDefault() is Track queued) await _player.PlayAsync(queued);
@@ -756,12 +749,6 @@ public sealed partial class MainWindow : Window
         Player_StateChanged(this, EventArgs.Empty);
         RefreshThemeDependentVisuals();
         RefreshArtistLinks();
-    }
-    private void UpdateCaptionTheme()
-    {
-        var immersive = NowPlaying.Visibility == Visibility.Visible;
-        AppWindow.TitleBar.ButtonForegroundColor = immersive ? Colors.White : ((SolidColorBrush)ThemeBrush("LumaTextPrimaryBrush")).Color;
-        AppWindow.TitleBar.ButtonInactiveForegroundColor = immersive ? Windows.UI.Color.FromArgb(150, 255, 255, 255) : ((SolidColorBrush)ThemeBrush("LumaTextTertiaryBrush")).Color;
     }
     private void AnimatePage(UIElement element)
     {

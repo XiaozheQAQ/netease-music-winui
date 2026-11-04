@@ -32,11 +32,23 @@ public sealed class NeteaseMusicClient : IDisposable
     public Task<PlaylistDetail> GetPlaylistAsync(long id, CancellationToken cancellationToken = default) =>
         RequestAsync<PlaylistDetail>("playlist", new { id }, cancellationToken);
 
+    public Task<List<Track>> GetPlaylistTracksAsync(IEnumerable<long> trackIds, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(trackIds);
+        var ids = trackIds.Distinct().ToArray();
+        if (ids.Length is < 1 or > 500 || ids.Any(id => id <= 0 || id > 9007199254740991))
+            throw new ArgumentException("请选择 1–500 首有效歌曲。", nameof(trackIds));
+        return RequestAsync<List<Track>>("playlistPage", new { trackIds = ids }, cancellationToken);
+    }
+
     public Task<StreamInfo> ResolveTrackAsync(long id, CancellationToken cancellationToken = default) =>
         RequestAsync<StreamInfo>("stream", new { id, quality = PreferredQuality }, cancellationToken);
 
     public Task<List<ArtistReference>> GetTrackArtistsAsync(long id, CancellationToken cancellationToken = default) =>
         RequestAsync<List<ArtistReference>>("trackArtists", new { id }, cancellationToken);
+
+    public Task<Track> GetTrackAsync(long id, CancellationToken cancellationToken = default) =>
+        RequestAsync<Track>("trackMetadata", new { id }, cancellationToken);
 
     public Task<ArtistPage> GetArtistAsync(long id, CancellationToken cancellationToken = default) =>
         RequestAsync<ArtistPage>("artist", new { id }, cancellationToken);

@@ -17,10 +17,13 @@ public sealed partial class MainWindow
     private ScrollViewer? _artistAlbumScroller;
     private long _artistId;
     private long _artistAlbumId;
+    private long _albumOriginArtistId;
+    private string _albumOriginArtistName = "";
     private string _artistName = "";
     private int _artistSongsOffset;
     private int _artistAlbumsOffset;
     private int _artistNavigationGeneration;
+    private CancellationTokenSource? _trackNavigationRequest;
     private bool _artistUiReady;
     private bool _artistAlbumsVisible;
     private bool _artistAlbumsLoaded;
@@ -39,6 +42,8 @@ public sealed partial class MainWindow
         ArtistView.LayoutUpdated += ArtistItems_LayoutUpdated;
         Closed += (_, _) =>
         {
+            _trackNavigationRequest?.Cancel();
+            _trackNavigationRequest?.Dispose();
             ArtistView.LayoutUpdated -= ArtistItems_LayoutUpdated;
             if (_artistSongScroller is not null) _artistSongScroller.ViewChanged -= ArtistScroller_ViewChanged;
             if (_artistAlbumScroller is not null) _artistAlbumScroller.ViewChanged -= ArtistScroller_ViewChanged;
@@ -48,36 +53,59 @@ public sealed partial class MainWindow
 
     private void RefreshArtistLinks()
     {
-        if (PlayerArtistButton is null || _player is null) return;
-        PlayerArtistButton.IsEnabled = _player.CurrentTrack is not null;
+        if (_player is null) return;
         if (ArtistSongs is not null && ArtistSongs.Visibility == Visibility.Visible)
             UpdatePlayingTrackIndicators(ArtistSongs);
     }
 
-    private async void PlayerArtist_Click(object sender, RoutedEventArgs args)
+    private Task OpenCurrentTrackArtistAsync(FrameworkElement anchor) => _player.CurrentTrack is Track track
+        ? OpenTrackArtistAsync(track, anchor, requireCurrentTrack: true) : Task.CompletedTask;
+
+    private async void TrackArtist_Click(object sender, RoutedEventArgs args)
     {
-        if (sender is FrameworkElement anchor) await OpenCurrentTrackArtistAsync(anchor);
+        if (sender is FrameworkElement { Tag: Track track } anchor) await OpenTrackArtistAsync(track, anchor);
     }
 
-    private async Task OpenCurrentTrackArtistAsync(FrameworkElement anchor)
+    private async void TrackAlbum_Click(object sender, RoutedEventArgs args)
     {
-        if (_closed || _player.CurrentTrack is not Track track) return;
-        var generation = ++_artistNavigationGeneration;
+        if (sender is FrameworkElement { Tag: Track track }) await OpenTrackAlbumAsync(track);
+    }
+
+    private CancellationToken BeginTrackNavigation()
+    {
+        _trackNavigationRequest?.Cancel();
+        _trackNavigationRequest?.Dispose();
+        _trackNavigationRequest = CancellationTokenSource.CreateLinkedTokenSource(
+            _accountLifetime.Token, _pageRequest?.Token ?? CancellationToken.None);
+        _artistNavigationGeneration++;
+        return _trackNavigationRequest.Token;
+    }
+
+    private static List<ArtistReference> GetValidTrackArtists(Track track) =>
+        (track.Artists ?? new List<ArtistReference>())
+            .Where(artist => artist.Id > 0 && !string.IsNullOrWhiteSpace(artist.Name))
+            .DistinctBy(artist => artist.Id).ToList();
+
+    private async Task OpenTrackArtistAsync(Track track, FrameworkElement anchor, bool requireCurrentTrack = false)
+    {
+        if (_closed || track.Id <= 0) return;
+        var token = BeginTrackNavigation();
+        var generation = _artistNavigationGeneration;
         var sourcePage = _pageRequest;
+        bool IsCurrent() => !_closed && !token.IsCancellationRequested && generation == _artistNavigationGeneration
+            && ReferenceEquals(sourcePage, _pageRequest) && (!requireCurrentTrack || _player.CurrentTrack?.Id == track.Id);
         try
         {
-            var artists = (track.Artists ?? new List<ArtistReference>())
-                .Where(artist => artist.Id > 0 && !string.IsNullOrWhiteSpace(artist.Name))
-                .DistinctBy(artist => artist.Id).ToList();
+            var artists = GetValidTrackArtists(track);
             if (artists.Count == 0)
             {
-                artists = await _client.GetTrackArtistsAsync(track.Id, _accountLifetime.Token);
-                if (_closed || generation != _artistNavigationGeneration || _player.CurrentTrack?.Id != track.Id
-                    || !ReferenceEquals(sourcePage, _pageRequest)) return;
+                artists = await _client.GetTrackArtistsAsync(track.Id, token);
+                if (!IsCurrent()) return;
                 artists = artists.Where(artist => artist.Id > 0 && !string.IsNullOrWhiteSpace(artist.Name))
                     .DistinctBy(artist => artist.Id).ToList();
                 track.Artists = artists;
             }
+            if (!IsCurrent()) return;
             if (artists.Count == 0) { ShowToast("暂无歌手资料"); return; }
             if (artists.Count == 1)
             {
@@ -92,7 +120,7 @@ public sealed partial class MainWindow
                 var item = new MenuFlyoutItem { Text = artist.Name };
                 item.Click += async (_, _) =>
                 {
-                    if (_closed) return;
+                    if (!IsCurrent()) return;
                     CloseNowPlaying();
                     await OpenArtistAsync(artist.Id, artist.Name);
                 };
@@ -103,9 +131,39 @@ public sealed partial class MainWindow
         catch (OperationCanceledException) { }
         catch (Exception error)
         {
-            if (!_closed && generation == _artistNavigationGeneration && ReferenceEquals(sourcePage, _pageRequest))
-                ShowError("无法打开歌手", error.Message);
+            if (IsCurrent()) ShowError("无法打开歌手", error.Message);
         }
+    }
+
+    private async Task OpenTrackAlbumAsync(Track track)
+    {
+        if (_closed || track.Id <= 0) return;
+        var token = BeginTrackNavigation();
+        var generation = _artistNavigationGeneration;
+        var sourcePage = _pageRequest;
+        bool IsCurrent() => !_closed && !token.IsCancellationRequested && generation == _artistNavigationGeneration
+            && ReferenceEquals(sourcePage, _pageRequest);
+        try
+        {
+            if (track.AlbumId <= 0)
+            {
+                var metadata = await _client.GetTrackAsync(track.Id, token);
+                if (!IsCurrent()) return;
+                if (metadata.Id != track.Id) throw new InvalidOperationException("歌曲资料不匹配。");
+                track.AlbumId = metadata.AlbumId;
+                if (GetValidTrackArtists(track).Count == 0) track.Artists = GetValidTrackArtists(metadata);
+                if (string.IsNullOrWhiteSpace(track.Album)) track.Album = metadata.Album;
+            }
+            if (!IsCurrent()) return;
+            if (track.AlbumId <= 0) { ShowToast("暂无专辑资料"); return; }
+            // The album may have been opened from an unrelated search/playlist.
+            // Never reuse the last visited artist as its return destination.
+            var artist = GetValidTrackArtists(track).FirstOrDefault();
+            CloseNowPlaying();
+            await OpenAlbumAsync(track.AlbumId, artist);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception error) { if (IsCurrent()) ShowError("无法打开专辑", error.Message); }
     }
 
     private bool IsCurrentArtist(CancellationToken token, long id) => !_closed && !token.IsCancellationRequested
@@ -339,15 +397,26 @@ public sealed partial class MainWindow
 
     private async void ArtistBack_Click(object sender, RoutedEventArgs args)
     {
-        if (_artistId > 0) await OpenArtistAsync(_artistId, _artistName, albums: true);
+        if (_albumOriginArtistId > 0) await OpenArtistAsync(_albumOriginArtistId, _albumOriginArtistName, albums: true);
     }
 
-    private async Task OpenAlbumAsync(long id)
+    private Task OpenAlbumAsync(long id)
+    {
+        var artist = _page == "artist" && _artistId > 0
+            ? new ArtistReference { Id = _artistId, Name = _artistName }
+            : _page == "album" && id == _artistAlbumId && _albumOriginArtistId > 0
+                ? new ArtistReference { Id = _albumOriginArtistId, Name = _albumOriginArtistName } : null;
+        return OpenAlbumAsync(id, artist);
+    }
+
+    private async Task OpenAlbumAsync(long id, ArtistReference? originArtist)
     {
         if (_closed || id <= 0) return;
         var token = BeginPage("album");
         _artistAlbumId = id;
-        AlbumArtistBackButton.Visibility = _artistId > 0 ? Visibility.Visible : Visibility.Collapsed;
+        _albumOriginArtistId = originArtist?.Id ?? 0;
+        _albumOriginArtistName = originArtist?.Name ?? "";
+        AlbumArtistBackButton.Visibility = _albumOriginArtistId > 0 ? Visibility.Visible : Visibility.Collapsed;
         ShowTracks("专辑", "", Array.Empty<Track>());
         SetPageLoading(true);
         try

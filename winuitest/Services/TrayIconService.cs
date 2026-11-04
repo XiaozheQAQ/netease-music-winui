@@ -112,7 +112,9 @@ public sealed class TrayIconService : IDisposable
             }
         }
         _menuState = _getState();
-        _menu?.Refresh(_menuState);
+        if (_menu is not null && _menu.Theme != _menuState.Theme)
+            DismissMenu(); // Reopen with freshly measured menus in the new application theme.
+        else _menu?.Refresh(_menuState);
     }
 
     public void ShowMenu()
@@ -185,6 +187,7 @@ public sealed class TrayIconService : IDisposable
                 return;
             }
             _foregroundFailureReported = false;
+            _menu.PrepareAppearance(_messageWindow);
             _menuKeyHook = TrayNative.SetWindowsHookEx(-1, _menuKeyFilter, 0, TrayNative.GetCurrentThreadId());
             _menuOpen = true;
             LastMenuStage = "tracking";
@@ -303,6 +306,7 @@ public sealed class TrayIconService : IDisposable
 
     private nint WindowProcedure(nint window, uint message, nuint wParam, nint lParam)
     {
+        if (message is 0x2B or 0x2C && _menu?.HandleMessage(message, lParam) == true) return 1;
         if (!_disposed && message == _taskbarCreated) { AddIcon(); return 0; }
         if (!_disposed && message == 0x117 && _menu is not null && (nint)wParam == _menu.AudioHandle)
         {

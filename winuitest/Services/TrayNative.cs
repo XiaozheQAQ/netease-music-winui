@@ -65,6 +65,68 @@ internal static class TrayNative
         internal uint Private;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct MenuItemInfo
+    {
+        internal uint Size, Mask, Type, State, Id;
+        internal nint Submenu, CheckedBitmap, UncheckedBitmap;
+        internal nuint Data;
+        internal nint Text;
+        internal uint TextLength;
+        internal nint Bitmap;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct MenuInfo
+    {
+        internal uint Size, Mask, Style, MaxHeight;
+        internal nint Background;
+        internal uint HelpId;
+        internal nuint Data;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct MeasureItem
+    {
+        internal uint ControlType, ControlId, ItemId, Width, Height;
+        internal nuint Data;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct DrawItem
+    {
+        internal uint ControlType, ControlId, ItemId, Action, State;
+        internal nint Window, Dc;
+        internal Rect Bounds;
+        internal nuint Data;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct AccessibleMenuInfo
+    {
+        internal uint Signature, TextLength;
+        internal nint Text;
+    }
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    internal struct LogFont
+    {
+        internal int Height, Width, Escapement, Orientation, Weight;
+        internal byte Italic, Underline, StrikeOut, CharacterSet, OutPrecision, ClipPrecision, Quality, PitchAndFamily;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] internal string FaceName;
+    }
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    internal struct NonClientMetrics
+    {
+        internal uint Size;
+        internal int BorderWidth, ScrollWidth, ScrollHeight, CaptionWidth, CaptionHeight;
+        internal LogFont CaptionFont;
+        internal int SmallCaptionWidth, SmallCaptionHeight;
+        internal LogFont SmallCaptionFont;
+        internal int MenuWidth, MenuHeight;
+        internal LogFont MenuFont, StatusFont, MessageFont;
+        internal int PaddedBorderWidth;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct HighContrast { internal uint Size, Flags; internal nint Scheme; }
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct Size { internal int Width, Height; }
+
     internal static uint TrackMenu(nint menu, nint owner, Rect anchor)
     {
         var point = new Point { X = anchor.Left + (anchor.Right - anchor.Left) / 2, Y = anchor.Top + (anchor.Bottom - anchor.Top) / 2 };
@@ -121,4 +183,27 @@ internal static class TrayNative
     [DllImport("user32.dll")] internal static extern bool UnhookWindowsHookEx(nint hook);
     [DllImport("user32.dll")] internal static extern nint CallNextHookEx(nint hook, int code, nuint wParam, nint lParam);
     [DllImport("user32.dll")] internal static extern short GetKeyState(int key);
+    [DllImport("user32.dll")] internal static extern uint GetDpiForWindow(nint window);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] internal static extern bool GetMenuItemInfo(nint menu, uint item, [MarshalAs(UnmanagedType.Bool)] bool byPosition, ref MenuItemInfo info);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)] internal static extern bool SetMenuItemInfo(nint menu, uint item, [MarshalAs(UnmanagedType.Bool)] bool byPosition, ref MenuItemInfo info);
+    [DllImport("user32.dll", SetLastError = true)] internal static extern bool SetMenuInfo(nint menu, ref MenuInfo info);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] internal static extern bool SystemParametersInfo(uint action, uint parameter, ref HighContrast value, uint flags);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] internal static extern bool SystemParametersInfoForDpi(uint action, uint parameter, ref NonClientMetrics value, uint flags, uint dpi);
+    [DllImport("user32.dll")] internal static extern nint GetDC(nint window);
+    [DllImport("user32.dll")] internal static extern int ReleaseDC(nint window, nint dc);
+    [DllImport("user32.dll")] internal static extern int FillRect(nint dc, ref Rect rectangle, nint brush);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] internal static extern int DrawText(nint dc, string text, int length, ref Rect rectangle, uint format);
+    [DllImport("gdi32.dll", CharSet = CharSet.Unicode)] internal static extern nint CreateFontIndirect(ref LogFont font);
+    [DllImport("gdi32.dll")] internal static extern nint CreateSolidBrush(uint color);
+    [DllImport("gdi32.dll")] internal static extern bool DeleteObject(nint value);
+    [DllImport("gdi32.dll")] internal static extern nint SelectObject(nint dc, nint value);
+    [DllImport("gdi32.dll")] internal static extern nint GetStockObject(int value);
+    [DllImport("gdi32.dll")] internal static extern int SaveDC(nint dc);
+    [DllImport("gdi32.dll")] internal static extern bool RestoreDC(nint dc, int saved);
+    [DllImport("gdi32.dll")] internal static extern int IntersectClipRect(nint dc, int left, int top, int right, int bottom);
+    [DllImport("gdi32.dll")] internal static extern uint SetTextColor(nint dc, uint color);
+    [DllImport("gdi32.dll")] internal static extern int SetBkMode(nint dc, int mode);
+    [DllImport("gdi32.dll", CharSet = CharSet.Unicode)] internal static extern bool GetTextExtentPoint32(nint dc, string text, int count, out Size size);
+    [DllImport("gdi32.dll")] internal static extern bool RoundRect(nint dc, int left, int top, int right, int bottom, int ellipseWidth, int ellipseHeight);
+    [DllImport("gdi32.dll")] internal static extern bool Ellipse(nint dc, int left, int top, int right, int bottom);
 }

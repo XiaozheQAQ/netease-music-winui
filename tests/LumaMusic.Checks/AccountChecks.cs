@@ -7,8 +7,24 @@ internal static class AccountChecks
 {
     internal static async Task RunAsync()
     {
+        VerifyMembershipLabels();
         await VerifyTypedClientAsync();
         if (OperatingSystem.IsWindows()) await VerifyProtectedStorageAsync();
+    }
+
+    private static void VerifyMembershipLabels()
+    {
+        foreach (var (membership, expected) in new[]
+        {
+            ("standard", "普通用户"), ("music-package", "音乐包"),
+            ("black-vip", "黑胶 VIP"), ("black-svip", "黑胶 SVIP")
+        })
+            Program.Check(new AccountProfile { VipType = 11, Membership = membership }.MembershipLabel == expected,
+                "Verified membership did not override a coarse login VIP type.");
+        foreach (var (type, expected) in new[] { (0, "普通用户"), (10, "音乐包"), (11, "黑胶 VIP"), (99, "网易云会员") })
+            Program.Check(new AccountProfile { VipType = type }.MembershipLabel == expected,
+                "Basic membership fallback guessed an unsupported entitlement.");
+        Console.WriteLine("PASS account membership: standard/music/black VIP/SVIP labels and conservative fallback");
     }
 
     private static async Task VerifyTypedClientAsync()
@@ -25,9 +41,16 @@ internal static class AccountChecks
         Program.Check(playlists.More && playlists.Playlists is [{ Id: 456, CreatorId: 123, TrackCount: 7 }], "Playlist page model failed.");
         Program.Check(playlists.Playlists[0].IsOwnedBy(123) && !playlists.Playlists[0].IsOwnedBy(9) && !new MusicPlaylist().IsOwnedBy(0), "Playlist ownership check failed closed.");
         Program.Check((await client.GetPlaylistAsync(456)).IsOwnedBy(123), "Playlist detail lost its owner.");
+        var pageTracks = await client.GetPlaylistTracksAsync(new long[] { 42, 43, 42 });
+        Program.Check(pageTracks.Count == 2 && pageTracks[0].Id == 42 && pageTracks[1].Id == 43
+            && pageTracks.All(track => track.IsMetadataLoaded && !track.IsMetadataLoading && track.AlbumId == 90),
+            "Paged metadata lost ordering, identity or legacy loaded defaults.");
         Program.Check(!(await client.GetUserPlaylistsAsync(123, 50)).More, "Playlist pagination parameters were lost.");
         var artists = await client.GetTrackArtistsAsync(42);
         Program.Check(artists is [{ Id: 7, Name: "歌手" }, { Id: 8 }], "Song artist IDs were lost.");
+        var track = await client.GetTrackAsync(42);
+        Program.Check(track is { Id: 42, AlbumId: 90, Fee: 8 } && track.Artists[0].Id == 7,
+            "Song metadata refresh lost the original ID, album or catalogue fee.");
         var artist = await client.GetArtistAsync(7);
         Program.Check(artist is { Id: 7, Description: "介绍" } && artist.Tracks[0].Artists[0].Id == 7, "Artist page model failed.");
         Program.Check((await client.GetArtistSongsAsync(7, 0, 2)).More && !(await client.GetArtistSongsAsync(7, 2, 2)).More, "Artist song paging lost offsets.");

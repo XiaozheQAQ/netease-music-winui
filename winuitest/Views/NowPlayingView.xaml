@@ -92,13 +92,21 @@
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="44" /><ColumnDefinition Width="44" /></Grid.ColumnDefinitions>
                         <StackPanel Spacing="4" VerticalAlignment="Center">
                             <TextBlock x:Name="TrackTitle" Text="未播放" FontSize="25" FontFamily="ms-appx:///Assets/Fonts/ResourceHanRoundedCN-Bold.ttf#Resource Han Rounded CN" FontWeight="Bold" Foreground="#F5FFFFFF" TextTrimming="CharacterEllipsis" />
-                            <controls:HandButton x:Name="TrackArtistButton" Click="Artist_Click" HorizontalAlignment="Left" HorizontalContentAlignment="Left" Padding="0,2" MinHeight="0" MinWidth="0" Background="Transparent" BorderThickness="0" AutomationProperties.Name="查看歌手作品">
-                                <TextBlock x:Name="TrackArtist" FontSize="21" FontFamily="ms-appx:///Assets/Fonts/ResourceHanRoundedCN-Bold.ttf#Resource Han Rounded CN" FontWeight="Bold" Foreground="#BFFFFFFF" TextTrimming="CharacterEllipsis" />
+                            <controls:HandButton x:Name="TrackArtistButton" Click="Artist_Click" HorizontalAlignment="Left" HorizontalContentAlignment="Left" Padding="0,2" MinHeight="0" MinWidth="0" Background="Transparent" Foreground="#BFFFFFFF" BorderThickness="0" AutomationProperties.Name="查看歌手作品">
+                                <controls:HandButton.Resources>
+                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent" />
+                                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent" />
+                                    <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="Transparent" />
+                                    <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="Transparent" />
+                                    <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="White" />
+                                    <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#DEFFFFFF" />
+                                </controls:HandButton.Resources>
+                                <TextBlock x:Name="TrackArtist" FontSize="21" FontFamily="ms-appx:///Assets/Fonts/ResourceHanRoundedCN-Bold.ttf#Resource Han Rounded CN" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
                             </controls:HandButton>
                         </StackPanel>
                         <Button x:Name="FavoriteButton" Grid.Column="1" Style="{StaticResource QuietButton}" Click="Favorite_Click" VerticalAlignment="Center" AutomationProperties.Name="收藏当前歌曲">
                             <Button.Resources><SolidColorBrush x:Key="ButtonBackground" Color="#14FFFFFF" /></Button.Resources>
-                            <controls:FilledIcon x:Name="FavoriteIcon" Kind="HeartOff" FontSize="21" />
+                            <controls:HeartIcon x:Name="FavoriteIcon" FontSize="21" Foreground="{Binding Foreground, ElementName=FavoriteButton}" />
                         </Button>
                         <Button x:Name="OptionsButton" Style="{StaticResource QuietButton}" Grid.Column="2" AutomationProperties.Name="播放选项" ToolTipService.ToolTip="播放选项">
                             <Button.Resources><SolidColorBrush x:Key="ButtonBackground" Color="#14FFFFFF" /></Button.Resources>
@@ -136,6 +144,8 @@
                                         <TextBlock x:Name="VolumeValue" Grid.Column="1" Text="75%" FontSize="14" Foreground="#BFFFFFFF" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                     </Grid>
                                     <Slider x:Name="VolumeBar" Minimum="0" Maximum="100" Value="75" StepFrequency="1" SmallChange="1" LargeChange="5" Margin="0,-10,0,0" ValueChanged="VolumeBar_ValueChanged" AutomationProperties.Name="音量百分比" />
+                                    <Rectangle Height="1" Fill="#20FFFFFF" />
+                                    <Button x:Name="CopyTrackLinkButton" Content="复制播放地址" Click="CopyTrackLink_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" CornerRadius="8" Padding="10,8" />
                                 </StackPanel>
                             </Flyout></Button.Flyout>
                         </Button>
@@ -182,8 +192,7 @@
                     <StackPanel x:Name="LyricsStack" Spacing="24" Margin="0,24,6,600" />
                 </ScrollViewer>
                 <StackPanel x:Name="EmptyLyricsPanel" VerticalAlignment="Center" Spacing="18" Margin="18,0,24,0">
-                    <controls:FilledIcon Kind="Music" FontSize="40" Foreground="#55FFFFFF" HorizontalAlignment="Left" />
-                    <TextBlock x:Name="EmptyLyricsText" Text="暂无歌词" FontSize="36" FontWeight="SemiBold" Foreground="#B3FFFFFF" TextWrapping="Wrap" />
+                    <TextBlock x:Name="EmptyLyricsText" Text="暂无歌词" FontSize="32" FontFamily="ms-appx:///Assets/Fonts/ResourceHanRoundedCN-Bold.ttf#Resource Han Rounded CN" FontWeight="Bold" Foreground="#B3FFFFFF" TextWrapping="Wrap" />
                 </StackPanel>
             </Grid>
         </Grid>

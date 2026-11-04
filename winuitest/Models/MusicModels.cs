@@ -11,8 +11,29 @@ public sealed class Track
     public string Artist { get; set; } = string.Empty;
     public List<ArtistReference> Artists { get; set; } = new();
     public string Album { get; set; } = string.Empty;
+    public long AlbumId { get; set; }
     public string ArtworkUrl { get; set; } = string.Empty;
     public long DurationMs { get; set; }
+    // NetEase's catalogue fee, not the current account's purchased/VIP access.
+    // Null preserves unknown metadata in libraries saved by older versions.
+    public int? Fee { get; set; }
+    public bool IsCloudTrack { get; set; }
+    public bool IsUnavailable { get; set; }
+    public bool IsMetadataLoaded { get; set; } = true;
+    [JsonIgnore]
+    public bool IsMetadataLoading => !IsMetadataLoaded;
+
+    [JsonIgnore]
+    public string AccessLabel => Fee switch { 1 => "VIP", 4 => "付费", 8 => "VIP 音质", _ => string.Empty };
+
+    [JsonIgnore]
+    public string AccessDescription => Fee switch
+    {
+        1 => "VIP 歌曲，按网易云音乐账号权益播放",
+        4 => "付费专辑歌曲，需购买后播放",
+        8 => "普通音质免费，会员可播放高音质及下载",
+        _ => string.Empty
+    };
 
     [JsonIgnore]
     public string DisplayDuration
@@ -107,6 +128,7 @@ public sealed class PlaylistDetail
     public string Subtitle { get; set; } = string.Empty;
     public string ArtworkUrl { get; set; } = string.Empty;
     public List<Track> Tracks { get; set; } = new();
+    public List<long> TrackIds { get; set; } = new();
 
     public bool IsOwnedBy(long userId) => userId > 0 && CreatorId == userId;
 }
@@ -123,6 +145,9 @@ public sealed class LyricLine
 {
     public long TimeMs { get; set; }
     public long DurationMs { get; set; }
+    // An explicit empty source timestamp immediately preceding this sung line.
+    // Kept separately so an empty lyric need not become a visible/clickable row.
+    public long? GapStartMs { get; set; }
     public string Text { get; set; } = string.Empty;
     public string Translation { get; set; } = string.Empty;
     public string Romanization { get; set; } = string.Empty;
@@ -164,13 +189,23 @@ public sealed class AccountProfile
     public string Nickname { get; set; } = string.Empty;
     public string AvatarUrl { get; set; } = string.Empty;
     public int VipType { get; set; }
+    public string Membership { get; set; } = string.Empty;
+    public long MembershipExpiresAt { get; set; }
 
     [JsonIgnore]
-    public string MembershipLabel => VipType switch
+    public string MembershipLabel => Membership switch
     {
+        "black-svip" => "黑胶 SVIP",
+        "black-vip" => "黑胶 VIP",
+        "music-package" => "音乐包",
+        "standard" => "普通用户",
+        _ => VipType switch
+        {
         11 => "黑胶 VIP",
         10 => "音乐包",
-        _ => "网易云音乐"
+        > 0 => "网易云会员",
+        _ => "普通用户"
+        }
     };
 }
 

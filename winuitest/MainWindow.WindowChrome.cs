@@ -1,6 +1,8 @@
+using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 using System;
 
 namespace winuitest;
@@ -15,6 +17,29 @@ public sealed partial class MainWindow
     private bool? _windowChromeFullScreen;
     private double _windowedCaptionInset = 138;
     private double _appliedCaptionInset = double.NaN;
+
+    private void UpdateCaptionTheme()
+    {
+        if (_closed) return;
+        var immersive = NowPlaying.Visibility == Visibility.Visible;
+        var foreground = immersive ? Colors.White : ((SolidColorBrush)ThemeBrush("LumaTextPrimaryBrush")).Color;
+        var mutedForeground = immersive ? Windows.UI.Color.FromArgb(255, 190, 190, 190)
+            : ((SolidColorBrush)ThemeBrush("LumaTextTertiaryBrush")).Color;
+        var titleBar = AppWindow.TitleBar;
+        // With content extended into the title bar, all four background states
+        // support alpha. Setting only the resting state leaves a system hover
+        // rectangle over the Mica/artwork surface. Keep native hit testing and
+        // Snap layouts while letting that surface remain visible in every state.
+        titleBar.ButtonBackgroundColor = Colors.Transparent;
+        titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
+        titleBar.ButtonHoverBackgroundColor = Colors.Transparent;
+        titleBar.ButtonPressedBackgroundColor = Colors.Transparent;
+        titleBar.ButtonForegroundColor = foreground;
+        titleBar.ButtonInactiveForegroundColor = mutedForeground;
+        titleBar.ButtonHoverForegroundColor = foreground;
+        titleBar.ButtonPressedForegroundColor = mutedForeground;
+        // Windows deliberately retains its red Close-button hover/press states.
+    }
 
     private void InitializeWindowChrome()
     {
@@ -53,6 +78,7 @@ public sealed partial class MainWindow
         // the presenter kind. Position and size changes matter as well.
         if (args.DidPresenterChange || args.DidSizeChange || args.DidPositionChange)
             RefreshWindowChrome();
+        if (args.DidPresenterChange) UpdateCaptionTheme();
     }
 
     private void WindowChrome_Activated(object sender, WindowActivatedEventArgs args) => RefreshWindowChrome();

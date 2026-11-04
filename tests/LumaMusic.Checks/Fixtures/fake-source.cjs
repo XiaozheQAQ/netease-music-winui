@@ -17,7 +17,9 @@ input.on('line', line => {
   if (request.method === 'authQrCheck') return reply({ code: 803, message: '授权成功', cookie: 'fixture-session' });
   if (request.method === 'userPlaylists') return reply({ playlists: [{ id: 456, creatorId: 123, title: '我的歌单', trackCount: 7 }], more: request.params.offset === 0 });
   if (request.method === 'playlist') return reply({ id: 456, creatorId: 123, title: '我的歌单', tracks: [] });
+  if (request.method === 'playlistPage') return reply(request.params.trackIds.map(id => ({ id, title: '分页歌曲', albumId: 90, fee: 8 })));
   if (request.method === 'trackArtists') return reply([{ id: 7, name: '歌手' }, { id: 8, name: 'Guest' }]);
+  if (request.method === 'trackMetadata') return reply({ id: request.params.id, title: '声', artist: '歌手', artists: [{ id: 7, name: '歌手' }], album: '专辑', albumId: 90, fee: 8 });
   if (request.method === 'artist') return reply({ id: request.params.id, name: '歌手', artworkUrl: 'https://example.test/artist.jpg', description: '介绍', tracks: [{ id: 42, title: '声', artist: '歌手', artists: [{ id: 7, name: '歌手' }] }] });
   if (request.method === 'artistSongs') return reply({ tracks: [{ id: 42 + request.params.offset, title: '声', artists: [{ id: 7, name: '歌手' }] }], total: 3, more: request.params.offset === 0 });
   if (request.method === 'artistAlbums') return reply({ albums: [{ id: 90, title: '作品集', artist: '歌手', artworkUrl: 'https://example.test/album.jpg', publishTime: 1234567890000, trackCount: 3 }], more: request.params.offset === 0 });

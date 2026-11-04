@@ -1,7 +1,7 @@
 #requires -Version 7.2
 [CmdletBinding()]
 param(
-    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.4',
+    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.0.5',
     [switch]$SkipPublish,
     [switch]$SkipPrepare,
     [switch]$NoRestore,

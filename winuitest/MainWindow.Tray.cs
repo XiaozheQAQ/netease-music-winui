@@ -109,8 +109,8 @@ public sealed partial class MainWindow
         switch (command)
         {
             case TrayCommand.PlayPause: _player.TogglePlayPause(); break;
-            case TrayCommand.Previous: await _player.PreviousAsync(); break;
-            case TrayCommand.Next: await _player.NextAsync(); break;
+            case TrayCommand.Previous: CancelPendingTrackPlayback(); await _player.PreviousAsync(); break;
+            case TrayCommand.Next: CancelPendingTrackPlayback(); await _player.NextAsync(); break;
             case TrayCommand.NowPlaying:
                 ShowMainWindow();
                 OpenNowPlaying();

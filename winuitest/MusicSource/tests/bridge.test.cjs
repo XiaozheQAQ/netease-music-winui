@@ -12,13 +12,23 @@ test('search normalizes NetEase track shapes and preserves paging', async () => 
   });
   const result = await bridge('search', { keywords: ' 周杰伦 ', offset: 30, limit: 30 });
   assert.equal(result.total, 123);
-  assert.deepEqual(result.tracks[0], { id: 42, title: '晴天', artist: '周杰伦', artists: [], album: '叶惠美', artworkUrl: 'https://example.com/a.jpg', durationMs: 269000 });
+  assert.deepEqual(result.tracks[0], { id: 42, title: '晴天', artist: '周杰伦', artists: [], album: '叶惠美', albumId: 0, artworkUrl: 'https://example.com/a.jpg', durationMs: 269000, fee: null, isCloudTrack: false, isUnavailable: false });
 });
 
 test('LRC supports multiple timestamps, fractional seconds and offset', () => {
   assert.deepEqual(parseLyrics('[offset:100]\n[00:02.3][00:04.56] 再见 \n[00:01.001]开始\n[ar:artist]'), [
     { timeMs: 1101, text: '开始' }, { timeMs: 2400, text: '再见' }, { timeMs: 4660, text: '再见' },
   ]);
+});
+
+test('empty source timestamps survive as gap boundaries without adding blank lyric rows', () => {
+  assert.deepEqual(parseLyrics('[offset:100]\n[00:01]first\n[00:03]\n[00:05] \n[00:09]next\n[00:20]'), [
+    { timeMs: 1100, text: 'first' }, { timeMs: 9100, text: 'next', gapStartMs: 3100 },
+  ]);
+  assert.deepEqual(parseYrc('[1000,500](1000,500,0)first\n[3000,2000]\n[9000,500](9000,500,0)next').map(line => [line.timeMs, line.gapStartMs]),
+    [[1000, undefined], [9000, 3000]]);
+  assert.deepEqual(parseLyrics('[00:01]\n[00:03]'), []);
+  assert.deepEqual(parseLyrics('[999999999999999999:59]bad'), []);
 });
 
 test('YRC keeps absolute word timestamps, durations, punctuation and spacing', () => {
@@ -105,22 +115,33 @@ test('playlist resolves all permitted track metadata in order', async () => {
   assert.deepEqual(result.tracks.map(song => song.id), [1, 2]);
 });
 
-test('large playlists load beyond 500 tracks with bounded concurrency and preserve order', async () => {
+test('large playlists expose the full ID index but only fetch the first viewport', async () => {
   const ids = Array.from({ length: 723 }, (_, index) => index + 1);
-  let active = 0;
-  let peak = 0;
+  const requests = [];
   const bridge = createBridge(async (method, params) => {
     if (method === 'playlist_detail') return { body: { code: 200, playlist: { id: 5, name: '大歌单', tracks: [], trackIds: ids.map(id => ({ id })) } } };
-    active++;
-    peak = Math.max(peak, active);
-    await new Promise(resolve => setTimeout(resolve, 1));
-    active--;
+    requests.push(params.ids.split(',').map(Number));
     return { body: { code: 200, songs: params.ids.split(',').map(id => ({ id: Number(id), name: id })).reverse() } };
   });
   const result = await bridge('playlist', { id: 5 });
-  assert.deepEqual(result.tracks.map(track => track.id), ids);
-  assert.ok(peak <= 4);
-  assert.ok(peak > 1);
+  assert.deepEqual(result.trackIds, ids);
+  assert.deepEqual(result.tracks.map(track => track.id), ids.slice(0, 60));
+  assert.deepEqual(requests, [ids.slice(0, 60)]);
+  const targetIds = ids.slice(600, 660);
+  const target = await bridge('playlistPage', { trackIds: targetIds });
+  assert.deepEqual(target.map(track => track.id), targetIds);
+  assert.deepEqual(requests, [ids.slice(0, 60), targetIds]);
+});
+
+test('playlist metadata batches validate bounds and retain only requested IDs in order', async () => {
+  const bridge = createBridge(async () => ({ body: { code: 200,
+    songs: [{ id: 3, name: '三' }, { id: 1, name: '一' }, { id: 999, name: '无关' }],
+    privileges: [{ id: 3, fee: 1 }, { id: 1, fee: 8 }],
+  } }));
+  const page = await bridge('playlistPage', { trackIds: [1, 2, 3, 1] });
+  assert.deepEqual(page.map(track => [track.id, track.fee]), [[1, 8], [3, 1]]);
+  for (const trackIds of [[], [0], [-1], [Number.MAX_SAFE_INTEGER + 1], Array.from({ length: 501 }, (_, i) => i + 1)])
+    await assert.rejects(bridge('playlistPage', { trackIds }), { code: 'INVALID_ARGUMENT' });
 });
 
 test('bad arguments and upstream failure are not empty successes', async () => {

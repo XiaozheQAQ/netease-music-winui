@@ -71,7 +71,7 @@ public sealed partial class MainWindow
 
     private void UpdateAccountUi()
     {
-        var membership = _account?.VipType switch { 11 => "黑胶 VIP", > 0 => "网易云会员", _ => "网易云音乐" };
+        var membership = _account?.MembershipLabel ?? "网易云音乐";
         SidebarAccountName.Text = _account?.Nickname ?? "登录网易云音乐";
         SidebarAccountCaption.Text = _account is null ? "同步你的音乐" : membership;
         SidebarAvatar.DisplayName = _account?.Nickname ?? "";

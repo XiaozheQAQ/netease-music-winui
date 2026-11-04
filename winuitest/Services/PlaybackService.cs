@@ -557,6 +557,19 @@ public sealed class PlaybackService : IDisposable
 
     public void AddToQueue(Track track) => AddToQueue(new[] { track });
 
+    /// <summary>Completes a partially loaded queue without replacing or seeking the native player.</summary>
+    public bool TryExpandQueue(IEnumerable<Track> completedTracks, long expectedCurrentId, IReadOnlyList<long> expectedQueueIds)
+    {
+        if (_disposed || !_dispatcher.HasThreadAccess || CurrentTrack?.Id != expectedCurrentId
+            || !_queue.Select(track => track.Id).SequenceEqual(expectedQueueIds)) return false;
+        var complete = completedTracks.Where(track => track.Id > 0 && track.IsMetadataLoaded).DistinctBy(track => track.Id).ToArray();
+        if (!complete.Any(track => track.Id == expectedCurrentId)) return false;
+        _queue.Clear();
+        _queue.AddRange(complete);
+        RaiseStateChanged();
+        return true;
+    }
+
     public void AddToQueue(IEnumerable<Track> tracks)
     {
         var snapshot = tracks.Where(track => track.Id > 0).ToArray();

@@ -45,19 +45,38 @@ function friendlyError(message, code = '') {
   return typeof message === 'string' && message ? message : '暂时无法连接网易云音乐，请检查网络后重试。';
 }
 
-function trackOf(value) {
+function feeOf(value) {
+  // SDK 4.41.1 /song/detail: 0 free/no copyright; 1 VIP; 4 purchased
+  // album; 8 free standard audio with member-only higher quality/downloads.
+  // Missing/unknown values must not turn into fee=0 through Number(null).
+  if (typeof value !== 'number' && !(typeof value === 'string' && /^[0148]$/.test(value))) return null;
+  const fee = Number(value);
+  return [0, 1, 4, 8].includes(fee) ? fee : null;
+}
+
+function trackOf(value, matchingPrivilege) {
   const song = value.song || value;
   const album = song.al || song.album || value.album || {};
   const artists = song.ar || song.artists || value.artists || [];
+  const privilege = { ...value.privilege, ...song.privilege, ...matchingPrivilege };
   return {
     id: Number(song.id || value.id),
     title: song.name || value.name || '未命名歌曲',
     artist: artists.map(item => item.name).filter(Boolean).join(' / ') || '未知歌手',
     artists: artistReferences(artists),
     album: album.name || '未知专辑',
+    albumId: Number.isSafeInteger(Number(album.id)) && Number(album.id) > 0 ? Number(album.id) : 0,
     artworkUrl: artwork(album.picUrl || value.picUrl),
     durationMs: Math.trunc(Number(song.dt || song.duration || value.duration || 0)),
+    fee: feeOf(song.fee) ?? feeOf(privilege.fee) ?? feeOf(value.fee),
+    isCloudTrack: song.t === 1 || song.t === 2 || song.pc != null || privilege.cs === true,
+    isUnavailable: Number(privilege.st) < 0 || privilege.toast === true,
   };
+}
+
+function tracksOf(values = [], privileges = []) {
+  const byId = new Map((Array.isArray(privileges) ? privileges : []).map(item => [Number(item.id), item]));
+  return values.map(value => trackOf(value, byId.get(Number((value.song || value).id))));
 }
 
 function artistReferences(values = []) {
@@ -109,13 +128,25 @@ function parseLyrics(lrc = '') {
   const result = [];
   for (const line of lrc.split(/\r?\n/)) {
     const text = line.replace(/\[[^\]]*\]/g, '').trim();
-    if (!text) continue;
     for (const match of line.matchAll(/\[(\d+):(\d{1,2})(?:[.:](\d{1,3}))?\]/g)) {
       const fraction = match[3] ? Number(match[3].padEnd(3, '0')) : 0;
-      result.push({ timeMs: Math.max(0, Number(match[1]) * 60000 + Number(match[2]) * 1000 + fraction + offset), text });
+      const timeMs = Math.max(0, Number(match[1]) * 60000 + Number(match[2]) * 1000 + fraction + offset);
+      if (Number.isSafeInteger(timeMs)) result.push({ timeMs, text });
     }
   }
-  return result.sort((a, b) => a.timeMs - b.timeMs);
+  return preserveExplicitGaps(result);
+}
+
+function preserveExplicitGaps(lines) {
+  const result = [];
+  let gapStart;
+  for (const line of lines.sort((a, b) => a.timeMs - b.timeMs)) {
+    if (!line.text.trim()) { gapStart ??= line.timeMs; continue; }
+    if (gapStart !== undefined && gapStart < line.timeMs) line.gapStartMs = gapStart;
+    gapStart = undefined;
+    result.push(line);
+  }
+  return result;
 }
 
 function parseYrc(yrc = '') {
@@ -131,7 +162,6 @@ function parseYrc(yrc = '') {
     const content = header[3];
     const markers = [...content.matchAll(/\((\d+),(\d+),(-?\d+)\)/g)];
     const text = content.replace(/\((\d+),(\d+),(-?\d+)\)/g, '');
-    if (!text.trim()) continue;
     const prefix = content.slice(0, markers[0]?.index ?? content.length);
     let words = [];
     // Untimed text is kept as a normal line; never divide its duration into invented words.
@@ -147,7 +177,7 @@ function parseYrc(yrc = '') {
     }
     result.push({ timeMs, durationMs, text, words });
   }
-  return result.sort((a, b) => a.timeMs - b.timeMs);
+  return preserveExplicitGaps(result);
 }
 
 function addLyricCompanions(lines, body, useYrc = false) {
@@ -179,12 +209,29 @@ function addLyricCompanions(lines, body, useYrc = false) {
   return lines;
 }
 
+function membershipOf(value, now = Date.now()) {
+  if (!value || typeof value !== 'object' || !['redplus', 'associator', 'musicPackage'].some(key => Object.hasOwn(value, key))) return null;
+  const serverNow = Number(value.now);
+  if (Number.isFinite(serverNow) && serverNow > 0) now = serverNow;
+  // These are current entitlements, not historical VIP level/growth points.
+  // An expired package keeps its vipCode, so code/level alone proves nothing.
+  for (const [key, membership] of [['redplus', 'black-svip'], ['associator', 'black-vip'], ['musicPackage', 'music-package']]) {
+    const plan = value[key];
+    if (!plan || typeof plan !== 'object' || plan.rights === false) continue;
+    const expiry = Number(plan.expireTime);
+    const active = Object.hasOwn(plan, 'expireTime') ? Number.isFinite(expiry) && expiry > now : plan.rights === true;
+    if (active) return { membership, membershipExpiresAt: Number.isFinite(expiry) && expiry > 0 ? expiry : 0 };
+  }
+  return { membership: 'standard', membershipExpiresAt: 0 };
+}
+
 function profileOf(body) {
   const data = body?.data || body;
   const value = data?.profile;
   const id = Number(value?.userId || value?.uid || data?.account?.id);
   if (!value || !Number.isSafeInteger(id) || id <= 0) return null;
-  return { id, nickname: value.nickname || '网易云用户', avatarUrl: artwork(value.avatarUrl), vipType: Number(value.vipType || 0) };
+  return { id, nickname: value.nickname || '网易云用户', avatarUrl: artwork(value.avatarUrl), vipType: Number(value.vipType || 0),
+    ...(membershipOf(value.vipRights) || {}) };
 }
 
 function createBridge(api, options = {}) {
@@ -204,7 +251,7 @@ function createBridge(api, options = {}) {
     const version = sessionVersion;
     try {
       // {} is intentional: SDK createOption otherwise falls back to NETEASE_COOKIE.
-      response = await api(name, { ...params, cookie: cookie || {}, timeout: REQUEST_TIMEOUT_MS });
+      response = await api(name, { ...params, cookie: cookie || {}, timeout: settings.timeout ?? REQUEST_TIMEOUT_MS });
     } catch (error) {
       const code = String(error?.body?.code || error?.code || 'SOURCE_ERROR');
       if (['301', '401'].includes(code) && !settings.ignoreAuthFailure && version === sessionVersion) { sessionCookie = ''; sessionVersion++; }
@@ -220,11 +267,27 @@ function createBridge(api, options = {}) {
     return body;
   }
 
-  async function accountStatus(cookie, version) {
+  async function accountStatus(cookie, version, includeMembership = false) {
     try {
       const body = await invoke('login_status', {}, { cookie, ignoreAuthFailure: true });
       const profile = profileOf(body);
       if (!profile && sessionVersion === version) { sessionCookie = ''; sessionVersion++; }
+      if (sessionVersion !== version) return { profile: null };
+      if (profile && includeMembership) {
+        try {
+          // Only login/session verification asks for VIP details. Never do this
+          // during playback ticks or the ownership check for playlist mutations.
+          const details = await invoke('vip_info_v2', { uid: profile.id }, { cookie, ignoreAuthFailure: true, timeout: 1200 });
+          const data = details.data;
+          if (data && (data.userId == null || Number(data.userId) === profile.id))
+            Object.assign(profile, membershipOf(data) || {});
+        } catch (error) {
+          if (['301', '401'].includes(error.code)) throw error;
+          // A temporary VIP endpoint outage must not reject a verified login.
+          // Retain only the tier supported by login_status in that case.
+        }
+        if (sessionVersion !== version) return { profile: null };
+      }
       return { profile };
     } catch (error) {
       if (!['301', '401'].includes(error.code)) throw error;
@@ -267,7 +330,7 @@ function createBridge(api, options = {}) {
         const version = ++sessionVersion;
         const cookie = normalizeCookie(params.cookie);
         if (!cookie || !/(?:^|;\s*)MUSIC_U=/.test(cookie)) return { profile: null };
-        const result = await accountStatus(cookie, version);
+        const result = await accountStatus(cookie, version, true);
         if (sessionVersion !== version) return { profile: null };
         if (result.profile) sessionCookie = cookie;
         return result;
@@ -284,7 +347,7 @@ function createBridge(api, options = {}) {
       case 'authStatus': {
         if (!sessionCookie) return { profile: null };
         const version = sessionVersion;
-        const result = await accountStatus(sessionCookie, version);
+        const result = await accountStatus(sessionCookie, version, true);
         return version === sessionVersion ? result : { profile: null };
       }
       case 'authLogout': {
@@ -341,7 +404,7 @@ function createBridge(api, options = {}) {
         if (results.every(result => result.status === 'rejected')) throw results[0].reason;
         return {
           playlists: results[0].status === 'fulfilled' ? (results[0].value.result || []).map(playlistOf) : [],
-          newSongs: results[1].status === 'fulfilled' ? (results[1].value.result || []).map(trackOf) : [],
+          newSongs: results[1].status === 'fulfilled' ? tracksOf(results[1].value.result || [], results[1].value.privileges) : [],
         };
       }
       case 'search': {
@@ -350,7 +413,7 @@ function createBridge(api, options = {}) {
         const limit = Math.min(100, Math.max(1, Number(params.limit) || 30));
         const offset = Math.max(0, Number(params.offset) || 0);
         const body = await invoke('cloudsearch', { keywords, limit, offset, type: 1 });
-        return { tracks: (body.result?.songs || []).map(trackOf), total: Number(body.result?.songCount || 0) };
+        return { tracks: tracksOf(body.result?.songs || [], body.result?.privileges || body.privileges), total: Number(body.result?.songCount || 0) };
       }
       case 'playlist': {
         const id = positiveId(params.id);
@@ -358,26 +421,36 @@ function createBridge(api, options = {}) {
         const playlist = body.playlist;
         if (!playlist) throw new SourceError('这个歌单暂时无法访问。');
         let tracks = playlist.tracks || [];
-        // Playlist/detail can contain just an initial subset, even after login.
-        // Fetch all permitted metadata with bounded concurrency; never silently
-        // truncate a user's collection to the first 500 tracks.
-        const ids = (playlist.trackIds || []).map(item => Number(item.id)).filter(id => Number.isSafeInteger(id) && id > 0);
+        let privileges = body.privileges || playlist.privileges || [];
+        // Keep the complete lightweight ordering, but resolve only the initial
+        // viewport. Subsequent pages (and direct jumps) request their own IDs.
+        const ids = [...new Set((playlist.trackIds?.length ? playlist.trackIds : tracks)
+          .map(item => Number(item.id)).filter(id => Number.isSafeInteger(id) && id > 0))];
         if (ids.length > 20000) throw new SourceError('这个歌单超过 20000 首，暂时无法完整加载。', 'PLAYLIST_TOO_LARGE');
-        if (ids.length > tracks.length) {
-          const batches = [];
-          for (let index = 0; index < ids.length; index += 100) batches.push(ids.slice(index, index + 100));
-          const responses = new Array(batches.length);
-          let nextBatch = 0;
-          await Promise.all(Array.from({ length: Math.min(4, batches.length) }, async () => {
-            while (nextBatch < batches.length) {
-              const index = nextBatch++;
-              responses[index] = await invoke('song_detail', { ids: batches[index].join(',') });
-            }
-          }));
-          const byId = new Map([...tracks, ...responses.flatMap(item => item.songs || [])].map(song => [Number(song.id), song]));
-          tracks = ids.map(id => byId.get(id)).filter(Boolean);
+        const initialIds = ids.slice(0, 60);
+        const byId = new Map(tracks.map(song => [Number(song.id), song]));
+        if (initialIds.some(id => !byId.has(id))) {
+          const response = await invoke('song_detail', { ids: initialIds.join(',') });
+          for (const song of response.songs || []) byId.set(Number(song.id), song);
+          privileges = [...privileges, ...(response.privileges || [])];
         }
-        return { ...playlistOf(playlist), tracks: tracks.map(trackOf) };
+        tracks = initialIds.map(id => byId.get(id)).filter(Boolean);
+        return { ...playlistOf(playlist), trackIds: ids, tracks: tracksOf(tracks, privileges) };
+      }
+      case 'playlistPage': {
+        if (!Array.isArray(params.trackIds) || params.trackIds.length < 1 || params.trackIds.length > 500)
+          throw new SourceError('请选择 1–500 首有效歌曲。', 'INVALID_ARGUMENT');
+        const ids = [...new Set(params.trackIds.map(positiveId))];
+        const response = await invoke('song_detail', { ids: ids.join(',') });
+        const byId = new Map(tracksOf(response.songs || [], response.privileges).map(track => [track.id, track]));
+        return ids.map(id => byId.get(id)).filter(Boolean);
+      }
+      case 'trackMetadata': {
+        const id = positiveId(params.id);
+        const body = await invoke('song_detail', { ids: String(id) });
+        const song = (body.songs || []).find(value => Number(value.id) === id);
+        if (!song) throw new SourceError('暂时无法获取这首歌曲的信息。');
+        return tracksOf([song], body.privileges)[0];
       }
       case 'trackArtists': {
         const id = positiveId(params.id);
@@ -393,7 +466,7 @@ function createBridge(api, options = {}) {
         const artist = body.artist;
         if (!artist || Number(artist.id) !== id) throw new SourceError('暂时无法获取这位歌手的信息。');
         return { id, name: artist.name || '未知歌手', artworkUrl: artwork(artist.picUrl || artist.img1v1Url),
-          description: artist.briefDesc || '', tracks: (body.hotSongs || []).map(trackOf) };
+          description: artist.briefDesc || '', tracks: tracksOf(body.hotSongs || [], body.privileges) };
       }
       case 'artistSongs': {
         const id = positiveId(params.id);
@@ -402,7 +475,7 @@ function createBridge(api, options = {}) {
         if (!Array.isArray(body.songs)) throw new SourceError('暂时无法获取歌手的单曲。');
         const total = Math.max(0, Math.trunc(Number(body.total || 0)));
         const more = body.more === true || body.more === undefined && (total > 0 ? offset + body.songs.length < total : body.songs.length === limit);
-        return { tracks: body.songs.map(trackOf), total, more: body.songs.length > 0 && more };
+        return { tracks: tracksOf(body.songs, body.privileges), total, more: body.songs.length > 0 && more };
       }
       case 'artistAlbums': {
         const id = positiveId(params.id);
@@ -418,7 +491,7 @@ function createBridge(api, options = {}) {
         if (!body.album || Number(body.album.id) !== id || !Array.isArray(body.songs))
           throw new SourceError('这个专辑暂时无法访问。');
         // Some album tracks omit artwork/album fields; use their parent metadata.
-        return { ...albumOf(body.album), tracks: body.songs.map(song => trackOf({ ...song, al: { ...body.album, ...song.al } })) };
+        return { ...albumOf(body.album), tracks: tracksOf(body.songs.map(song => ({ ...song, al: { ...body.album, ...song.al } })), body.privileges) };
       }
       case 'stream': {
         const id = positiveId(params.id);

@@ -29,7 +29,9 @@ internal static class Program
             await VerifyParentTerminationAsync();
             await VerifyStartupDisposalAsync();
             LibraryChecks.Run();
+            TrackShareLinkChecks.Run();
             LyricTimingChecks.Run();
+            LyricGapChecks.Run();
             LyricLayoutChecks.Run();
             await AccountChecks.RunAsync();
             if (args.Contains("--live")) await VerifyLiveSourceAsync();

@@ -55,12 +55,9 @@ public sealed partial class MainWindow
 
     private async Task PlayTrackFromListAsync(Track track, ListView? list)
     {
-        try
-        {
-            if (ReferenceEquals(list, QueueList)) await _player.PlayAsync(track);
-            else await _player.PlayAsync(track, ReferenceEquals(list, HomeSongs) ? _home?.NewSongs : _tracks);
-        }
-        catch (Exception error) { if (!_closed) ShowError("暂时无法播放", error.Message); }
+        if (ReferenceEquals(list, QueueList)) await PlayTracksWithIntentAsync(track, null);
+        else await PlayTracksWithIntentAsync(track,
+            ReferenceEquals(list, HomeSongs) ? _home?.NewSongs ?? new List<Track>() : _tracks.ToList(), expandInBackground: true);
     }
 
     private void TrackRow_ContextRequested(UIElement sender, ContextRequestedEventArgs args)
@@ -113,14 +110,21 @@ public sealed partial class MainWindow
             if (selection.Length == 1) await PlayTrackFromListAsync(invoked, list);
             else
             {
-                try { await _player.PlayAsync(selection[0], selection); }
-                catch (Exception error) { if (!_closed) ShowError("暂时无法播放", error.Message); }
+                await PlayTracksWithIntentAsync(selection[0], selection);
             }
         };
         menu.Items.Add(play);
         var enqueue = new MenuFlyoutItem { Text = "加入播放列表", Icon = new FilledIcon { Kind = "Queue" } };
-        enqueue.Click += (_, _) => { _player.AddToQueue(selection); ShowToast($"已加入 {selection.Length} 首歌曲"); };
+        enqueue.Click += async (_, _) => await RunResolvedTrackActionAsync(selection, ready =>
+        {
+            _player.AddToQueue(ready);
+            ShowToast($"已加入 {ready.Length} 首歌曲");
+            return Task.CompletedTask;
+        });
         menu.Items.Add(enqueue);
+        var copyLink = new MenuFlyoutItem { Text = selection.Length > 1 ? "复制所选播放地址" : "复制播放地址", Icon = new SymbolIcon(Symbol.Copy) };
+        copyLink.Click += (_, _) => CopyTrackLinks(selection);
+        menu.Items.Add(copyLink);
         menu.Items.Add(new MenuFlyoutSeparator());
 
         var addToPlaylist = new MenuFlyoutSubItem { Text = "加入歌单", Icon = new FilledIcon { Kind = "Playlist" } };
@@ -167,15 +171,16 @@ public sealed partial class MainWindow
         menu.Items.Add(new MenuFlyoutSeparator());
         var allFavorite = selection.All(track => _library.IsFavorite(track.Id));
         var favorite = new MenuFlyoutItem { Text = allFavorite ? "取消喜欢" : "加入喜欢的歌曲", Icon = new FilledIcon { Kind = "Heart" } };
-        favorite.Click += (_, _) =>
+        favorite.Click += async (_, _) => await RunResolvedTrackActionAsync(selection, ready =>
         {
-            _library.SetFavorites(selection, !allFavorite);
+            _library.SetFavorites(ready, !allFavorite);
             UpdateFavorite();
             UpdateTrackHearts(TrackList);
             UpdateTrackHearts(HomeSongs);
             if (_page == "favorites") OpenLibrary("favorites");
             ShowToast(_library.LastSaveError ?? (allFavorite ? "已取消喜欢" : "已加入喜欢的歌曲"));
-        };
+            return Task.CompletedTask;
+        });
         menu.Items.Add(favorite);
         if (point is Point location) menu.ShowAt(anchor, new FlyoutShowOptions { Position = location });
         else menu.ShowAt(anchor);
@@ -208,15 +213,9 @@ public sealed partial class MainWindow
             ShowToast(remove ? $"已从歌单删除 {ids.Length} 首歌曲" : $"已加入「{title}」");
             if (_page == "playlist" && _playlistId == playlistId)
             {
-                if (remove)
-                {
-                    var removed = ids.ToHashSet();
-                    for (var index = _tracks.Count - 1; index >= 0; index--)
-                        if (removed.Contains(_tracks[index].Id)) _tracks.RemoveAt(index);
-                    PageDescription.Text = $"{_tracks.Count} 首歌曲";
-                    UpdateEmptyState();
-                }
-                else await OpenPlaylistAsync(playlistId);
+                // Refresh the lightweight ID index after a mutation so loaded
+                // virtual pages cannot retain stale offsets or deleted tracks.
+                await OpenPlaylistAsync(playlistId);
             }
             _ = SyncCloudPlaylistsAsync();
         }
