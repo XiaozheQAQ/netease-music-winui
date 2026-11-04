@@ -12,6 +12,7 @@
                  View elements consume these keys with ThemeResource for live updates. -->
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="LumaStartupBackgroundBrush" Color="#F7F7FA" />
                     <Color x:Key="SystemAccentColor">#D83B5A</Color>
                     <Color x:Key="SystemAccentColorLight1">#E95873</Color>
                     <Color x:Key="SystemAccentColorLight2">#F1889D</Color>
@@ -52,6 +53,7 @@
                     </LinearGradientBrush>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="LumaStartupBackgroundBrush" Color="#202025" />
                     <Color x:Key="SystemAccentColor">#F57891</Color>
                     <Color x:Key="SystemAccentColorLight1">#F795A9</Color>
                     <Color x:Key="SystemAccentColorLight2">#FBB8C5</Color>
@@ -92,6 +94,7 @@
                     </LinearGradientBrush>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Default">
+                    <SolidColorBrush x:Key="LumaStartupBackgroundBrush" Color="#202025" />
                     <Color x:Key="SystemAccentColor">#F57891</Color>
                     <Color x:Key="SystemAccentColorLight1">#F795A9</Color>
                     <Color x:Key="SystemAccentColorLight2">#FBB8C5</Color>

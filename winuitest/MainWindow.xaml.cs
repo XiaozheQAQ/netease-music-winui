@@ -67,11 +67,14 @@ public sealed partial class MainWindow : Window
 
     public MainWindow()
     {
+        // Set the native identity before XAML construction and the first activation.
+        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "Luma.ico"));
         _motion = new MotionCoordinator(_uiSettings);
         InitializeComponent();
         _motion.AttachPressFeedback(Root);
         ExtendsContentIntoTitleBar = true;
-        SetTitleBar(DragRegion);
+        SetTitleBar(StartupDragRegion);
+        AppWindow.TitleBar.IconShowOptions = IconShowOptions.HideIconAndSystemMenu;
         var scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96d;
         var workArea = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
         AppWindow.Resize(new Windows.Graphics.SizeInt32(Math.Min((int)(1120 * scale), workArea.Width - 40), Math.Min((int)(740 * scale), workArea.Height - 40)));
@@ -82,7 +85,6 @@ public sealed partial class MainWindow : Window
         }
         AppWindow.TitleBar.ButtonBackgroundColor = Colors.Transparent;
         AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
-        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "Luma.ico"));
         _player = new PlaybackService(_client, DispatcherQueue)
         {
             Volume = _library.Volume,
@@ -135,17 +137,14 @@ public sealed partial class MainWindow : Window
     {
         if (_loaded) return;
         _loaded = true;
-        _accountRestoreTask = RestoreAccountAsync();
-        var restoration = RestoreAccountAndPlaybackAsync();
-        await LoadHomeAsync();
-        await restoration;
+        await InitializeStartupAsync();
     }
 
-    private CancellationToken BeginPage(string page)
+    private CancellationToken BeginPage(string page, CancellationToken cancellationToken = default)
     {
         _pageRequest?.Cancel();
         _pageRequest?.Dispose();
-        _pageRequest = new CancellationTokenSource();
+        _pageRequest = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _page = page;
         _inspectorOpen = false;
         _motion.Cancel(Inspector, visible: false);
@@ -155,8 +154,11 @@ public sealed partial class MainWindow : Window
         ResetPageLoading();
         var destination = page == "discover" ? (UIElement)HomeView : page == "cloud" ? CloudView : page == "settings" ? SettingsView : TracksView;
         foreach (var view in new UIElement[] { HomeView, TracksView, CloudView, SettingsView })
-            if (!ReferenceEquals(view, destination)) _ = _motion.HideAsync(view, offset: -6, durationMs: 200);
-        _ = _motion.RevealAsync(destination, offset: 10, durationMs: 360);
+        {
+            if (!_startupReady) _motion.Cancel(view, ReferenceEquals(view, destination));
+            else if (!ReferenceEquals(view, destination)) _ = _motion.HideAsync(view, offset: -6, durationMs: 200);
+        }
+        if (_startupReady) _ = _motion.RevealAsync(destination, offset: 10, durationMs: 360);
         RefreshButton.Visibility = page == "settings" ? Visibility.Collapsed : Visibility.Visible;
         CollectionCoverBorder.Visibility = Visibility.Collapsed;
         ResetSearchPaging();
@@ -170,9 +172,9 @@ public sealed partial class MainWindow : Window
         Breadcrumb.Text = page switch { "favorites" or "recent" => "资料库", "playlist" => "歌单", "cloud" => "网易云音乐", "settings" => "设置", "search" => "搜索", _ => "现在就听" };
     }
 
-    private async Task LoadHomeAsync(bool refresh = false)
+    private async Task LoadHomeAsync(bool refresh = false, CancellationToken cancellationToken = default)
     {
-        var token = BeginPage("discover");
+        var token = BeginPage("discover", cancellationToken);
         if (_home is not null && !refresh) return;
         SetPageLoading(true);
         try
@@ -188,9 +190,12 @@ public sealed partial class MainWindow : Window
             ResizeCards();
             if (home.Playlists.Count == 0 && home.NewSongs.Count == 0) ShowError("暂无发现内容", "可以先搜索歌曲，或点击右上角刷新重试。");
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+            if (!_closed && !_startupReady) ShowError("连接暂时不可用", "请检查网络后点击右上角刷新重试。");
+        }
         catch (Exception ex) { if (!token.IsCancellationRequested) ShowError("音源暂时不可用", ex.Message + " 点击右上角刷新重试。"); }
-        finally { if (!token.IsCancellationRequested && !_closed) SetPageLoading(false); }
+        finally { if (!_closed && _pageRequest?.Token == token) SetPageLoading(false); }
     }
 
     private void ShowTracks(string title, string description, IEnumerable<Track> tracks, string eyebrow = "YOUR MUSIC")
@@ -449,7 +454,7 @@ public sealed partial class MainWindow : Window
             PlayerArtist.Text = track.Artist;
             SetImage(PlayerArtwork, track.ArtworkUrl);
             SyncTrackSelection();
-            _ = LoadLyricsAsync(track.Id);
+            if (_startupReady) _ = LoadLyricsAsync(track.Id);
             UpdateFavorite();
             SaveSession();
         }
@@ -590,7 +595,7 @@ public sealed partial class MainWindow : Window
         _immersiveOpen = true;
         _lyricsTransition++;
         _shellHitTesting.Clear();
-        foreach (var child in Root.Children)
+        foreach (var child in Shell.Children)
         {
             if (ReferenceEquals(child, NowPlaying) || ReferenceEquals(child, Toast)) continue;
             _shellHitTesting[child] = child.IsHitTestVisible;
@@ -662,14 +667,14 @@ public sealed partial class MainWindow : Window
         catch (Exception ex) { ShowError("无法切换全屏", ex.Message); }
     }
     private void Root_SizeChanged(object sender, SizeChangedEventArgs e) { UpdateResponsiveLayout(); ResizeCards(); if (_loaded) UpdateCaptionInset(); }
-    private async Task RestorePlaybackAsync()
+    private async Task RestorePlaybackAsync(CancellationToken cancellationToken = default)
     {
         try
         {
             var session = _library.LastSession;
             if (session.CurrentTrack is null && _library.Recent.FirstOrDefault() is Track recent)
                 session = new PlaybackSessionSnapshot { CurrentTrack = recent, Queue = _library.Recent.Take(100).ToList() };
-            if (session.CurrentTrack is not null && _player.CurrentTrack is null) await _player.RestoreSessionAsync(session);
+            if (session.CurrentTrack is not null && _player.CurrentTrack is null) await _player.RestoreSessionAsync(session, cancellationToken);
         }
         finally
         {
@@ -762,6 +767,8 @@ public sealed partial class MainWindow : Window
     private void Window_Closed(object sender, WindowEventArgs args)
     {
         _closed = true;
+        _startupLifetime.Cancel();
+        StartupScreen.Stop();
         _pageRequest?.Cancel(); _pageRequest?.Dispose();
         _lyricsRequest?.Cancel(); _lyricsRequest?.Dispose();
         _accountLifetime.Cancel();

@@ -94,6 +94,7 @@ public sealed partial class MainWindow
 
     private async void Shortcut_PreviewKeyDown(object sender, KeyRoutedEventArgs args)
     {
+        if (!_startupReady) { args.Handled = true; return; }
         // The same routed event can reach more than one registered input scope.
         // Track that event, rather than the physical key, to preserve key repeat.
         if (_handledShortcutPreviewEvents.TryGetValue(args, out _)) { args.Handled = true; return; }
@@ -115,7 +116,7 @@ public sealed partial class MainWindow
     private bool CanRunShortcut(ShortcutBinding binding)
     {
         var shortcut = binding.Accelerator;
-        if (_closed || _loginDialogOpen || _shortcutsDialogOpen || !shortcut.IsEnabled) return false;
+        if (_closed || !_startupReady || _loginDialogOpen || _shortcutsDialogOpen || !shortcut.IsEnabled) return false;
         // Dismiss the focused flyout/dropdown before Escape closes the lyrics
         // underneath it. Other app commands, including Space, keep priority.
         if (shortcut.Key == VirtualKey.Escape && FocusIsInShortcutPopup()) return false;

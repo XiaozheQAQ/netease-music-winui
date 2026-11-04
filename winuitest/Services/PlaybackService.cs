@@ -163,8 +163,9 @@ public sealed class PlaybackService : IDisposable
 
     public Task PlayAsync(Track track, IEnumerable<Track>? queue = null) => OnUiAsync(() => PlayCoreAsync(track, queue));
 
-    public Task RestoreSessionAsync(PlaybackSessionSnapshot snapshot) => OnUiAsync(async () =>
+    public Task RestoreSessionAsync(PlaybackSessionSnapshot snapshot, CancellationToken cancellationToken = default) => OnUiAsync(async () =>
     {
+        cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(snapshot);
         var queue = (snapshot.Queue ?? new()).Where(track => track is not null && track.Id > 0).DistinctBy(track => track.Id).ToList();
         if (snapshot.CurrentTrack is not { Id: > 0 } current)
@@ -176,26 +177,30 @@ public sealed class PlaybackService : IDisposable
         }
         var milliseconds = Math.Clamp(snapshot.PositionMs, 0, long.MaxValue / TimeSpan.TicksPerMillisecond);
         await PlayCoreAsync(current, queue, rememberHistory: false, autoPlay: false,
-            startPosition: TimeSpan.FromTicks(milliseconds * TimeSpan.TicksPerMillisecond));
+            startPosition: TimeSpan.FromTicks(milliseconds * TimeSpan.TicksPerMillisecond),
+            externalCancellationToken: cancellationToken);
     });
 
-    public Task ReloadCurrentAsync() => OnUiAsync(async () =>
+    public Task ReloadCurrentAsync(CancellationToken cancellationToken = default) => OnUiAsync(async () =>
     {
         if (CurrentTrack is null) return;
         var position = GetLyricPosition();
         var autoPlay = IsLoading ? _playWhenOpened : IsPlaying;
-        await PlayCoreAsync(CurrentTrack, rememberHistory: false, autoPlay: autoPlay, startPosition: position, positionIsSongTime: true);
+        await PlayCoreAsync(CurrentTrack, rememberHistory: false, autoPlay: autoPlay, startPosition: position, positionIsSongTime: true,
+            externalCancellationToken: cancellationToken);
     });
 
     private async Task PlayCoreAsync(Track track, IEnumerable<Track>? queue = null, bool rememberHistory = true,
-        bool autoPlay = true, TimeSpan? startPosition = null, bool positionIsSongTime = false)
+        bool autoPlay = true, TimeSpan? startPosition = null, bool positionIsSongTime = false,
+        CancellationToken externalCancellationToken = default)
     {
         if (_disposed) return;
+        externalCancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(track);
         var requestGeneration = ++_generation;
         _playRequest?.Cancel();
         _playRequest?.Dispose();
-        _playRequest = new CancellationTokenSource();
+        _playRequest = CancellationTokenSource.CreateLinkedTokenSource(externalCancellationToken);
         var cancellationToken = _playRequest.Token;
 
         if (queue is not null)
@@ -236,7 +241,8 @@ public sealed class PlaybackService : IDisposable
         try
         {
             var stream = await _client.ResolveTrackAsync(track.Id, cancellationToken);
-            if (_disposed || cancellationToken.IsCancellationRequested || requestGeneration != _generation) return;
+            if (_disposed || requestGeneration != _generation) return;
+            cancellationToken.ThrowIfCancellationRequested();
             if (!Uri.TryCreate(stream.Url, UriKind.Absolute, out var uri) || uri.Scheme is not ("https" or "http"))
                 throw new InvalidOperationException("这首歌曲暂时无法播放，可能需要登录或没有可用音源。");
 
@@ -264,7 +270,15 @@ public sealed class PlaybackService : IDisposable
             if (autoPlay && !_pendingStartPosition.HasValue) _player.Play();
             RaiseStateChanged();
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            if (_disposed || requestGeneration != _generation) return;
+            // A bounded startup restore may stop resolving the URL. Keep the
+            // restored queue, track and pending seek so Play can retry normally.
+            IsLoading = false;
+            IsPlaying = false;
+            RaiseStateChanged();
+        }
         catch (Exception ex)
         {
             if (_disposed || requestGeneration != _generation) return;

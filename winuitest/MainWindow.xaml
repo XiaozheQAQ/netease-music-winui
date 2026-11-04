@@ -44,6 +44,7 @@
                 </controls:TrackColumnsGrid>
             </DataTemplate>
         </Grid.Resources>
+        <Grid x:Name="Shell" Opacity="0" IsHitTestVisible="False">
         <Grid.RowDefinitions><RowDefinition Height="48" /><RowDefinition Height="*" /><RowDefinition x:Name="PlayerBarRow" Height="96" /></Grid.RowDefinitions>
         <Grid.ColumnDefinitions><ColumnDefinition x:Name="SidebarColumn" Width="220" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
         <Border Grid.RowSpan="2" Background="{ThemeResource LumaSidebarBrush}" BorderBrush="{ThemeResource LumaBorderBrush}" BorderThickness="0,0,1,0" />
@@ -323,5 +324,10 @@
         </Border>
         <views:NowPlayingView x:Name="NowPlaying" Grid.RowSpan="3" Grid.ColumnSpan="2" Visibility="Collapsed" />
         <Border x:Name="Toast" Grid.Row="1" Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,20" Background="{ThemeResource LumaToastBackgroundBrush}" CornerRadius="10" Padding="20,12" Visibility="Collapsed"><TextBlock x:Name="ToastText" Foreground="{ThemeResource LumaToastForegroundBrush}" FontSize="12" /></Border>
+        </Grid>
+        <Grid x:Name="StartupLayer" Background="Transparent">
+            <views:StartupView x:Name="StartupScreen" />
+            <Grid x:Name="StartupDragRegion" Height="48" VerticalAlignment="Top" Background="Transparent" />
+        </Grid>
     </Grid>
 </Window>

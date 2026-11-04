@@ -22,30 +22,46 @@ public sealed partial class MainWindow
     private CancellationTokenSource? _cloudRequest;
     private CancellationTokenSource? _loginRequest;
     private Task _accountRestoreTask = Task.CompletedTask;
+    private Task _startupCloudSync = Task.CompletedTask;
     private AccountProfile? _account;
     private bool _loginDialogOpen;
     private bool _accountBusy;
 
-    private async Task RestoreAccountAndPlaybackAsync()
+    private async Task RestoreAccountAndPlaybackAsync(CancellationToken cancellationToken = default)
     {
         await _accountRestoreTask;
-        if (!_closed) await RestorePlaybackAsync();
+        if (!_closed) await RestorePlaybackAsync(cancellationToken);
     }
 
-    private async Task RestoreAccountAsync()
+    private async Task RestoreAccountAsync(CancellationToken cancellationToken = default)
     {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _accountLifetime.Token);
+        timeout.CancelAfter(TimeSpan.FromSeconds(6));
+        var token = timeout.Token;
         try
         {
-            var cookie = await _accountStore.LoadAsync(_accountLifetime.Token);
+            var cookie = await _accountStore.LoadAsync(token);
             if (_closed || string.IsNullOrWhiteSpace(cookie)) return;
-            var result = await _client.SetSessionAsync(cookie, _accountLifetime.Token);
+            var result = await _client.SetSessionAsync(cookie, token);
+            token.ThrowIfCancellationRequested();
             if (_closed) return;
             _account = result.Profile;
             if (_account is null) await _accountStore.ClearAsync();
             UpdateAccountUi();
-            if (_account is not null) _ = SyncCloudPlaylistsAsync();
+            if (_account is not null) _startupCloudSync = SyncCloudPlaylistsAsync(cancellationToken);
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+            if (_closed) return;
+            // Invalidate the child's in-flight validation as well as the parent
+            // request, so a late response cannot restore an uncommitted account.
+            using var reset = CancellationTokenSource.CreateLinkedTokenSource(_accountLifetime.Token);
+            reset.CancelAfter(TimeSpan.FromSeconds(2));
+            try { await _client.ResetSessionAsync(reset.Token); } catch (Exception) { }
+            if (_closed) return;
+            SidebarAccountCaption.Text = "登录状态待验证";
+            SettingsAccountLabel.Text = "连接后重新登录以验证账号";
+        }
         catch (Exception)
         {
             // A temporary outage must not erase a previously saved account.
@@ -103,13 +119,14 @@ public sealed partial class MainWindow
         else await SyncCloudPlaylistsAsync();
     }
 
-    private async Task SyncCloudPlaylistsAsync()
+    private async Task SyncCloudPlaylistsAsync(CancellationToken cancellationToken = default)
     {
         if (_account is null || _closed) return;
         _cloudRequest?.Cancel();
         _cloudRequest?.Dispose();
-        _cloudRequest = CancellationTokenSource.CreateLinkedTokenSource(_accountLifetime.Token);
-        var token = _cloudRequest.Token;
+        _cloudRequest = CancellationTokenSource.CreateLinkedTokenSource(_accountLifetime.Token, cancellationToken);
+        var request = _cloudRequest;
+        var token = request.Token;
         var uid = _account.Id;
         SetCloudLoading(true);
         CloudAction.IsEnabled = false;
@@ -150,7 +167,7 @@ public sealed partial class MainWindow
         }
         finally
         {
-            if (!token.IsCancellationRequested && !_closed)
+            if (ReferenceEquals(_cloudRequest, request) && !_closed)
             {
                 SetCloudLoading(false);
                 CloudAction.IsEnabled = true;
@@ -171,7 +188,7 @@ public sealed partial class MainWindow
             CloudNotice.Title = "登录已过期";
             CloudNotice.Message = "请重新扫码登录。";
             CloudNotice.IsOpen = true;
-            await _player.ReloadCurrentAsync();
+            await _player.ReloadCurrentAsync(token);
         }
         // Network failure is not proof of expiry; retain the account and encrypted credential.
         catch (Exception) { }

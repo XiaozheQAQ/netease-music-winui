@@ -52,6 +52,13 @@ public sealed partial class MainWindow
         {
             UpdateEmptyState();
             if (_page == "cloud") CloudEmpty.Visibility = _cloudPlaylists.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            if (!_startupReady)
+            {
+                PageSkeleton.IsActive = false;
+                _motion.Cancel(PageSkeleton, false);
+                _motion.Cancel(CurrentPageView, true);
+                return;
+            }
             if (await _motion.HideAsync(PageSkeleton, offset: 0, durationMs: 140) && !_closed && transition == _loadingTransition)
             {
                 PageSkeleton.IsActive = false;

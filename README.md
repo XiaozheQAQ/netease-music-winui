@@ -4,6 +4,7 @@
 
 ## 功能
 
+- 启动时显示居中的品牌 Logo 载入动画，预加载首屏内容后平滑进入主界面；网络失败时提供重试状态。
 - 发现页：云端推荐歌单、新歌；点击歌单查看并播放曲目。
 - 搜索网易云音乐单曲，并将结果加入播放队列；接近列表底部自动分页加载，保留列表虚拟化。
 - Windows 原生音频播放、暂停、上一首 / 下一首、进度拖动、音量、随机与循环播放。
@@ -126,7 +127,7 @@ dotnet build .\winuitest\winuitest.csproj -p:Platform=x64 -p:MSBuildEnableWorklo
 pwsh -File .\scripts\package-msi.ps1
 ```
 
-脚本通过项目工具清单恢复固定版本的官方 WiX 4.0.6，复用非打包、自包含的 WinUI 发布载荷，生成 `artifacts/msi/LumaMusic_1.0.0_x64.msi`。已经发布和准备工具时可添加 `-SkipPublish -SkipToolRestore` 仅重新打包。
+脚本通过项目工具清单恢复固定版本的官方 WiX 4.0.6，复用非打包、自包含的 WinUI 发布载荷，生成 `artifacts/msi/LumaMusic_1.0.1_x64.msi`。已经发布和准备工具时可添加 `-SkipPublish -SkipToolRestore` 仅重新打包。
 
 双击 MSI 即可安装到当前用户的 `%LOCALAPPDATA%\Programs\Luma Music`，不要求导入签名证书。安装向导支持选择目录；开始菜单提供启动与卸载入口，也可从 Windows“设置 → 应用”卸载。安装包包含 .NET、Windows App SDK、Node.js 与音源依赖；卸载保留独立存放的收藏、历史和设置。
 
