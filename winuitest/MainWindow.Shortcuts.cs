@@ -122,7 +122,7 @@ public sealed partial class MainWindow
         // underneath it. Other app commands, including Space, keep priority.
         if (shortcut.Key == VirtualKey.Escape && FocusIsInShortcutPopup()) return false;
         if (binding.TypingSensitive && FocusOwnsKey(shortcut.Key)) return false;
-        return !(shortcut.Modifiers == VirtualKeyModifiers.Control &&
+        return !(shortcut.Modifiers is VirtualKeyModifiers.Control or VirtualKeyModifiers.Menu &&
             (shortcut.Key is VirtualKey.Left or VirtualKey.Right or VirtualKey.Up or VirtualKey.Down) && IsEditingText());
     }
 

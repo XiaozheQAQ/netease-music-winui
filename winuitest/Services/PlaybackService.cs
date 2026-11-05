@@ -22,6 +22,7 @@ public sealed class PlaybackService : IDisposable
     private MediaPlayer _player;
     private readonly DispatcherQueueTimer _positionTimer;
     private readonly List<Track> _queue = new();
+    private readonly IReadOnlyList<Track> _queueView;
     private readonly Stack<long> _history = new();
     private CancellationTokenSource? _playRequest;
     private MediaSource? _source;
@@ -44,6 +45,7 @@ public sealed class PlaybackService : IDisposable
     {
         _client = client;
         _dispatcher = dispatcher;
+        _queueView = _queue.AsReadOnly();
         _player = CreatePlayer();
         _positionTimer = dispatcher.CreateTimer();
         _positionTimer.Interval = TimeSpan.FromMilliseconds(400);
@@ -139,7 +141,9 @@ public sealed class PlaybackService : IDisposable
         }
     }
     public TimeSpan Duration { get; private set; }
-    public IReadOnlyList<Track> Queue => _queue.AsReadOnly();
+    public IReadOnlyList<Track> Queue => _queueView;
+    /// <summary>Changes when queue IDs or their order change. All writes occur on the UI dispatcher.</summary>
+    public long QueueRevision { get; private set; }
 
     /// <summary>An empty ID follows the Windows default output instead of pinning an endpoint.</summary>
     public string SelectedAudioOutputId => _selectedAudioOutput?.Id ?? string.Empty;
@@ -342,8 +346,7 @@ public sealed class PlaybackService : IDisposable
         var queue = (snapshot.Queue ?? new()).Where(track => track is not null && track.Id > 0).DistinctBy(track => track.Id).ToList();
         if (snapshot.CurrentTrack is not { Id: > 0 } current)
         {
-            _queue.Clear();
-            _queue.AddRange(queue);
+            ReplaceQueue(queue);
             RaiseStateChanged();
             return;
         }
@@ -378,15 +381,19 @@ public sealed class PlaybackService : IDisposable
         if (queue is not null)
         {
             var tracks = queue.Where(item => item is not null && item.Id > 0).DistinctBy(item => item.Id).ToList();
-            _queue.Clear();
-            _queue.AddRange(tracks);
+            if (!tracks.Any(item => item.Id == track.Id)) tracks.Add(track);
+            ReplaceQueue(tracks);
             _history.Clear();
         }
-        else if (rememberHistory && CurrentTrack is not null && CurrentTrack.Id != track.Id)
+        else
         {
-            _history.Push(CurrentTrack.Id);
+            if (rememberHistory && CurrentTrack is not null && CurrentTrack.Id != track.Id) _history.Push(CurrentTrack.Id);
+            if (!_queue.Any(item => item.Id == track.Id))
+            {
+                _queue.Add(track);
+                QueueRevision++;
+            }
         }
-        if (!_queue.Any(item => item.Id == track.Id)) _queue.Add(track);
 
         // A fresh native player gives callbacks an unambiguous source identity. Windows may
         // deliver an old player's events after a new song has already begun resolving.
@@ -564,8 +571,7 @@ public sealed class PlaybackService : IDisposable
             || !_queue.Select(track => track.Id).SequenceEqual(expectedQueueIds)) return false;
         var complete = completedTracks.Where(track => track.Id > 0 && track.IsMetadataLoaded).DistinctBy(track => track.Id).ToArray();
         if (!complete.Any(track => track.Id == expectedCurrentId)) return false;
-        _queue.Clear();
-        _queue.AddRange(complete);
+        ReplaceQueue(complete);
         RaiseStateChanged();
         return true;
     }
@@ -579,6 +585,7 @@ public sealed class PlaybackService : IDisposable
             var added = snapshot.Where(track => ids.Add(track.Id)).ToArray();
             if (added.Length == 0) return;
             _queue.AddRange(added);
+            QueueRevision++;
             RaiseStateChanged();
         });
     }
@@ -592,17 +599,35 @@ public sealed class PlaybackService : IDisposable
         {
             // Keep the current track until playback moves on, preserving a consistent next index.
             if (CurrentTrack is not null) ids.Remove(CurrentTrack.Id);
-            if (_queue.RemoveAll(item => ids.Contains(item.Id)) > 0) RaiseStateChanged();
+            if (_queue.RemoveAll(item => ids.Contains(item.Id)) == 0) return;
+            QueueRevision++;
+            RaiseStateChanged();
         });
     }
 
     public void ClearQueue() => Dispatch(() =>
     {
-        _queue.Clear();
-        if (CurrentTrack is not null) _queue.Add(CurrentTrack);
+        ReplaceQueue(CurrentTrack is { } current ? new[] { current } : Array.Empty<Track>());
         _history.Clear();
         RaiseStateChanged();
     });
+
+    private void ReplaceQueue(IReadOnlyList<Track> tracks)
+    {
+        // Compare only on an explicit queue edit. Even when the order is the
+        // same, retain the fresh track metadata supplied by that operation.
+        var changed = _queue.Count != tracks.Count;
+        for (var i = 0; !changed && i < tracks.Count; i++) changed = _queue[i].Id != tracks[i].Id;
+        if (changed)
+        {
+            _queue.Clear();
+            _queue.AddRange(tracks);
+            QueueRevision++;
+            return;
+        }
+        for (var i = 0; i < tracks.Count; i++)
+            if (!ReferenceEquals(_queue[i], tracks[i])) _queue[i] = tracks[i];
+    }
 
     private void OnMediaOpened(MediaPlayer sender, object args) => Dispatch(() =>
     {

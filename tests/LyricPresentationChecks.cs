@@ -154,6 +154,21 @@ public sealed partial class MainWindow
             RequireLyricPresentation(artist.Background is SolidColorBrush { Color.A: 0 }
                 && presenter.Background is SolidColorBrush { Color.A: 0 }, "artist hover has no background block");
             VisualStateManager.GoToState(artist, "Normal", false);
+            var options = FindLyricPresentationElement<Button>(NowPlaying, "OptionsButton");
+            options.Flyout.ShowAt(options);
+            try
+            {
+                await Task.Delay(180);
+                var menu = VisualTreeHelper.GetOpenPopupsForXamlRoot(Root.XamlRoot)
+                    .Select(popup => popup.Child).OfType<FlyoutPresenter>().FirstOrDefault();
+                RequireLyricPresentation(menu is { ActualWidth: > 200, ActualHeight: > 80 and < 250 },
+                    "compact lyric menu fits within four rows");
+                var copy = FindLyricPresentationElement<Button>(menu!, "CopyTrackLinkButton");
+                var volume = FindLyricPresentationElement<Slider>(menu!, "VolumeBar");
+                RequireLyricPresentation(copy.ActualHeight >= 28 && volume.ActualWidth >= 75,
+                    "compact menu preserves usable copy and volume targets");
+            }
+            finally { options.Flyout.Hide(); }
             RequireLyricPresentation(!_player.IsPlaying, "presentation checks leave playback paused");
         }
         finally

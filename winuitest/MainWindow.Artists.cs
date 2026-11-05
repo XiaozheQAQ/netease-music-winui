@@ -175,7 +175,7 @@ public sealed partial class MainWindow
     {
         if (_closed || id <= 0) return;
         InitializeArtistUi();
-        var token = BeginPage("artist");
+        var token = BeginPage("artist", route: new BrowseRoute("artist", Id: id, Name: name, Albums: albums));
         _artistId = id;
         _artistName = name;
         _artistSongsOffset = _artistAlbumsOffset = 0;
@@ -188,7 +188,7 @@ public sealed partial class MainWindow
         ArtistPageTitle.Text = name;
         ArtistPageSubtitle.Text = "";
         ArtistPageArtwork.Source = null;
-        SetArtistTab(false);
+        SetArtistTab(albums);
         _artistSongScroller?.ChangeView(null, 0, null, true);
         _artistAlbumScroller?.ChangeView(null, 0, null, true);
         SetPageLoading(true);
@@ -224,7 +224,7 @@ public sealed partial class MainWindow
                 UpdateArtistEmptyState();
             }
         }
-        if (albums && IsCurrentArtist(token, id)) await SelectArtistAlbumsAsync();
+        if (_artistAlbumsVisible && IsCurrentArtist(token, id)) await SelectArtistAlbumsAsync();
     }
 
     private Task RefreshArtistAsync() => OpenArtistAsync(_artistId, _artistName, _artistAlbumsVisible);
@@ -254,6 +254,7 @@ public sealed partial class MainWindow
 
     private void ArtistSongsTab_Click(object sender, RoutedEventArgs args)
     {
+        RecordArtistTabRoute(false);
         SetArtistTab(false);
         TryAppendArtistItems();
     }
@@ -263,6 +264,7 @@ public sealed partial class MainWindow
     private async Task SelectArtistAlbumsAsync()
     {
         if (_page != "artist" || _closed) return;
+        RecordArtistTabRoute(true);
         SetArtistTab(true);
         if (!_artistAlbumsLoaded && !_artistPaging) await LoadArtistAlbumsAsync();
     }
@@ -414,7 +416,7 @@ public sealed partial class MainWindow
     private async Task OpenAlbumAsync(long id, ArtistReference? originArtist)
     {
         if (_closed || id <= 0) return;
-        var token = BeginPage("album");
+        var token = BeginPage("album", route: new BrowseRoute("album", Id: id, OriginId: originArtist?.Id ?? 0, Name: originArtist?.Name ?? ""));
         _artistAlbumId = id;
         _albumOriginArtistId = originArtist?.Id ?? 0;
         _albumOriginArtistName = originArtist?.Name ?? "";

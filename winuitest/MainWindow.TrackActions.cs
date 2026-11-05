@@ -123,7 +123,7 @@ public sealed partial class MainWindow
         });
         menu.Items.Add(enqueue);
         var copyLink = new MenuFlyoutItem { Text = selection.Length > 1 ? "复制所选播放地址" : "复制播放地址", Icon = new FilledIcon { Kind = "Copy" } };
-        copyLink.Click += (_, _) => CopyTrackLinks(selection);
+        copyLink.Click += async (_, _) => await CopyTrackLinksAsync(selection);
         menu.Items.Add(copyLink);
         menu.Items.Add(new MenuFlyoutSeparator());
 

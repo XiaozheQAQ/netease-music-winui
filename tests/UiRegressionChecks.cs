@@ -213,6 +213,10 @@ public sealed partial class MainWindow
             Assert(_tray is null && _account is null && !_player.IsPlaying);
             checks.Add(step);
 
+            step = "navigation-history-routes-scroll-and-titlebar-input";
+            await RunNavigationHistoryChecksAsync();
+            checks.Add(step);
+
             var current = _player.CurrentTrack!;
             var sampleTracks = new[] { current }.Concat(Enumerable.Range(1, 59).Select(index => new Track
             {
@@ -270,7 +274,7 @@ public sealed partial class MainWindow
                 await Task.Delay(180, budget.Token);
                 _trackListScroller!.ChangeView(null, 600, null, true);
                 await WaitAsync(() => _collectionHeaderCompact && CompactCollectionHeader.Visibility == Visibility.Visible);
-                await Task.Delay(250, budget.Token);
+                await WaitAsync(() => _collectionHeaderReveal >= .999);
                 AssertCompactHeadingDoesNotCoverScrollBar();
             }
             Root.RequestedTheme = ElementTheme.Light;
@@ -286,7 +290,7 @@ public sealed partial class MainWindow
             await WaitAsync(() => !_collectionHeaderCompact);
             _trackListScroller.ChangeView(null, 600, null, true);
             await WaitAsync(() => _collectionHeaderCompact);
-            await Task.Delay(250, budget.Token);
+            await WaitAsync(() => _collectionHeaderReveal >= .999);
             AssertCompactHeadingDoesNotCoverScrollBar();
             BeginPage("recent");
             ShowTracks("最近播放", "2 首歌曲", sampleTracks.Take(2));
@@ -477,21 +481,29 @@ public sealed partial class MainWindow
             var nativePlayerField = _player.GetType().GetField("_player", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
             Assert(nativePlayerField is not null);
             var nativePlayerBeforeExpansion = nativePlayerField!.GetValue(_player);
+            var queueRevisionBeforeExpansion = _player.QueueRevision;
             BeginPage("recent");
             ShowTracks("最近播放", "1 首歌曲", new[] { linkedTrack });
             await expandingPlayback;
             Assert(_player.Queue.Count == 240 && _player.CurrentTrack?.Id == 40002
                 && ReferenceEquals(nativePlayerBeforeExpansion, nativePlayerField.GetValue(_player)));
+            Assert(_player.QueueRevision == queueRevisionBeforeExpansion + 1);
             checks.Add(step);
 
             step = "background-queue-expansion-preserves-user-edits";
             await OpenPlaylistAsync(888);
             var editedExpansion = PlayTrackFromListAsync(_tracks[3], TrackList);
             await WaitAsync(() => _player.CurrentTrack?.Id == 40003);
-            _player.AddToQueue(new Track { Id = 77777, Title = "用户手动加入的歌曲", Artist = "Luma Music" });
+            var revisionBeforeEdit = _player.QueueRevision;
+            var manualTrack = new Track { Id = 77777, Title = "用户手动加入的歌曲", Artist = "Luma Music" };
+            _player.AddToQueue(manualTrack);
+            Assert(_player.QueueRevision == revisionBeforeEdit + 1);
+            _player.AddToQueue(manualTrack);
+            Assert(_player.QueueRevision == revisionBeforeEdit + 1);
             var editedQueueIds = _player.Queue.Select(track => track.Id).ToArray();
             await editedExpansion;
             Assert(_player.CurrentTrack?.Id == 40003 && _player.Queue.Select(track => track.Id).SequenceEqual(editedQueueIds));
+            Assert(_player.QueueRevision == revisionBeforeEdit + 1);
             checks.Add(step);
 
             step = "new-play-intent-cancels-old-playlist-hydration";

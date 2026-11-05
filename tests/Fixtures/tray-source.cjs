@@ -27,6 +27,10 @@ input.on('line',async line=>{
  if(request.method==='discover')return setTimeout(()=>reply({playlists:[{id:456,title:'托盘测试',artworkUrl,trackCount:2}],newSongs:tracks}),4000);
  if(request.method==='authSetSession')return reply({profile:null});
  if(request.method==='authResume')return reply({});
+ if(request.method==='search'){
+  const page={tracks,total:tracks.length};
+  return request.params.keywords==='history slow'?setTimeout(()=>reply(page),300):reply(page);
+ }
  if(request.method==='stream')return reply({url:`http://127.0.0.1:${server.address().port}/silence.wav`,quality:'exhigh',isPreview:false});
  if(request.method==='lyrics')return reply({lines:[{timeMs:0,durationMs:180000,text:'Luma Music',translation:'小猫陪你听音乐',romanization:'',words:[]}]});
  if(request.method==='playlist')return request.params.id===888

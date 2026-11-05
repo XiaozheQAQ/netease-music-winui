@@ -31,6 +31,9 @@ public sealed partial class NowPlayingView : UserControl
     private bool _animationsEnabled;
     private bool _motionSubscribed;
     private IReadOnlyList<LyricLine> _lines = Array.Empty<LyricLine>();
+    private readonly record struct SeekAvailabilityState(IReadOnlyList<LyricLine> Lines, long TrackId,
+        bool HasTrack, bool Loading, bool IsPreview, double Duration, double PreviewOffset, int CorrectionMs);
+    private SeekAvailabilityState? _lastSeekAvailability;
     private long _trackId = -1;
     private int _activeLine = -1;
     private bool _syncing;
@@ -350,9 +353,7 @@ public sealed partial class NowPlayingView : UserControl
             if (_scrollMoving && !_manualScrollHeld) _scrollPosition = LyricsScroller.VerticalOffset;
         }
         var gapActive = _activeGapRow is not null;
-        var index = -1;
-        if (!gapActive)
-            for (var i = 0; i < _lines.Count && _lines[i].TimeMs <= timestamp; i++) index = i;
+        var index = gapActive ? -1 : FindActiveLine(timestamp);
         var phraseAdvance = index > _activeLine && (_activeLine >= 0 || wasGapActive);
         if (index != _activeLine)
         {
@@ -395,15 +396,40 @@ public sealed partial class NowPlayingView : UserControl
         line.TimedText?.Update(0, false, _animationsEnabled);
     }
 
+    private int FindActiveLine(double timestamp)
+    {
+        // Almost every render frame is still in the same phrase. After a seek
+        // find the last timestamp <= the clock, including simultaneous lines.
+        if (_activeLine >= 0 && _activeLine < _lines.Count && _lines[_activeLine].TimeMs <= timestamp
+            && (_activeLine + 1 == _lines.Count || _lines[_activeLine + 1].TimeMs > timestamp)) return _activeLine;
+        var low = 0;
+        var high = _lines.Count;
+        while (low < high)
+        {
+            var middle = low + (high - low) / 2;
+            if (_lines[middle].TimeMs <= timestamp) low = middle + 1;
+            else high = middle;
+        }
+        return low - 1;
+    }
+
     private void UpdateSeekAvailability()
     {
+        // Position advances every playback tick, but only the source limits,
+        // calibration or a rebuilt lyric list can change individual hit targets.
+        var state = new SeekAvailabilityState(_lines, _trackId, _hasTrack, _loading, _isPreview,
+            _duration, _lyricOffset, _manualLyricOffsetMs);
+        if (_lastSeekAvailability == state) return;
+        _lastSeekAvailability = state;
         for (var index = 0; index < _lyricButtons.Count; index++)
         {
             var target = (_lines[index].TimeMs + _manualLyricOffsetMs) / 1000d - _lyricOffset;
             var enabled = _hasTrack && !_loading && _duration > 0 && target >= 0 && (!_isPreview || target <= _duration);
-            _lyricButtons[index].IsEnabled = enabled;
+            var button = _lyricButtons[index];
+            if (button.IsEnabled != enabled) button.IsEnabled = enabled;
             // Keep all lyrics readable even when the account only permits a short preview.
-            _lyricButtons[index].Opacity = _isPreview && (target < 0 || target > _duration) ? 0.55 : 1;
+            var opacity = _isPreview && (target < 0 || target > _duration) ? 0.55 : 1;
+            if (button.Opacity != opacity) button.Opacity = opacity;
         }
     }
 

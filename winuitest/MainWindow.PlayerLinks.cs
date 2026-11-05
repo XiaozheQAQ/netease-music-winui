@@ -15,7 +15,7 @@ public sealed partial class MainWindow
 
     private void UpdatePlayerArtistBounds()
     {
-        if (!PlayerArtistSlot.IsLoaded || PlayerArtistSlot.ActualWidth <= 0) return;
+        if (_closed || _immersiveOpen || !PlayerArtistSlot.IsLoaded || PlayerArtistSlot.ActualWidth <= 0) return;
         var origin = PlayerArtistSlot.TransformToVisual(PlayerInfoHost).TransformPoint(new Point());
         if (Math.Abs(Canvas.GetLeft(PlayerArtistButton) - origin.X) > 0.1 || double.IsNaN(Canvas.GetLeft(PlayerArtistButton)))
             Canvas.SetLeft(PlayerArtistButton, origin.X);

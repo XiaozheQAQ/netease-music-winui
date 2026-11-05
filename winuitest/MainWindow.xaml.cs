@@ -52,7 +52,7 @@ public sealed partial class MainWindow : Window
     private long _displayedTrackId;
     private long _rememberedTrackId;
     private int _lyricIndex = -1;
-    private string _queueSignature = "";
+    private long _displayedQueueRevision = -1;
     private int _searchTotal;
     private int _nextSearchOffset;
     private bool _updatingSeek;
@@ -112,6 +112,7 @@ public sealed partial class MainWindow : Window
         SearchBox.QueryIcon = new FilledIcon { Kind = "Search", FontSize = 16 };
         Closed += Window_Closed;
         InitializeShortcuts();
+        InitializeNavigationHistory();
         NowPlaying.PlayPauseRequested += (_, _) => PlayPause_Click(PlayPauseButton, new RoutedEventArgs());
         NowPlaying.PreviousRequested += (_, _) => Previous_Click(PlayPauseButton, new RoutedEventArgs());
         NowPlaying.NextRequested += (_, _) => Next_Click(PlayPauseButton, new RoutedEventArgs());
@@ -131,7 +132,7 @@ public sealed partial class MainWindow : Window
         NowPlaying.FullScreenRequested += (_, _) => SetLyricsFullScreen(!_lyricsFullScreen);
         NowPlaying.QueueRequested += (_, _) => TransportQueue_Click(ShuffleButton, new RoutedEventArgs());
         NowPlaying.ArtistRequested += async (_, anchor) => await OpenCurrentTrackArtistAsync(anchor);
-        NowPlaying.CopyTrackLinkRequested += (_, _) => { if (_player.CurrentTrack is Track track) CopyTrackLinks(new[] { track }); };
+        NowPlaying.CopyTrackLinkRequested += async (_, _) => { if (_player.CurrentTrack is Track track) await CopyTrackLinksAsync(new[] { track }); };
         NowPlaying.RepeatRequested += (_, _) => Repeat_Click(RepeatButton, new RoutedEventArgs());
         InitializeArtistUi();
         InitializePlayerLinks();
@@ -149,8 +150,9 @@ public sealed partial class MainWindow : Window
         await InitializeStartupAsync();
     }
 
-    private CancellationToken BeginPage(string page, CancellationToken cancellationToken = default)
+    private CancellationToken BeginPage(string page, CancellationToken cancellationToken = default, BrowseRoute? route = null)
     {
+        RecordBrowseRoute(route ?? new BrowseRoute(page));
         _pageRequest?.Cancel();
         _pageRequest?.Dispose();
         _pageRequest = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -235,13 +237,14 @@ public sealed partial class MainWindow : Window
         if (append && (!CanAppendSearchResults || !string.Equals(keywords, _query, StringComparison.Ordinal))) return;
         if (keywords.Length == 0)
         {
-            BeginPage("search");
+            BeginPage("search", route: new BrowseRoute("search", Query: ""));
             _query = "";
+            SearchBox.Text = "";
             ShowTracks("搜索", "", Array.Empty<Track>(), "FIND YOUR SOUND");
             SearchBox.Focus(FocusState.Keyboard);
             return;
         }
-        var token = append ? _pageRequest!.Token : BeginPage("search");
+        var token = append ? _pageRequest!.Token : BeginPage("search", route: new BrowseRoute("search", Query: keywords));
         if (!append)
         {
             _query = keywords;
@@ -299,7 +302,7 @@ public sealed partial class MainWindow : Window
     private async Task OpenPlaylistAsync(long id)
     {
         _playlistId = id;
-        var token = BeginPage("playlist");
+        var token = BeginPage("playlist", route: new BrowseRoute("playlist", Id: id));
         ShowTracks("歌单", "", Array.Empty<Track>(), "CURATED PLAYLIST");
         SetPageLoading(true);
         try
@@ -461,8 +464,13 @@ public sealed partial class MainWindow : Window
         _updatingSeek = false;
         PositionLabel.Text = FormatTime(_player.Position);
         DurationLabel.Text = FormatTime(_player.Duration);
-        var signature = string.Join(",", _player.Queue.Select(item => item.Id));
-        if (signature != _queueSignature) { _queueSignature = signature; QueueList.ItemsSource = _player.Queue.ToList(); QueueCountLabel.Text = $"{_player.Queue.Count} 首歌曲"; SaveSession(); }
+        if (_displayedQueueRevision != _player.QueueRevision)
+        {
+            _displayedQueueRevision = _player.QueueRevision;
+            QueueList.ItemsSource = _player.Queue.ToList();
+            QueueCountLabel.Text = $"{_player.Queue.Count} 首歌曲";
+            SaveSession();
+        }
         UpdatePlayingTrackIndicators(QueueList);
         QueueEmptyState.Visibility = _inspectorOpen && _queueVisible && _player.Queue.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         HighlightLyric();
@@ -784,6 +792,7 @@ public sealed partial class MainWindow : Window
         _pageRequest?.Cancel(); _pageRequest?.Dispose();
         _lyricsRequest?.Cancel(); _lyricsRequest?.Dispose();
         _accountLifetime.Cancel();
+        CancelTrackLinkCopy();
         _cloudRequest?.Cancel();
         _loginRequest?.Cancel();
         _toastTimer.Stop();

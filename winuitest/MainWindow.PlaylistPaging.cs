@@ -22,6 +22,11 @@ public sealed partial class MainWindow
     private bool _locatorRefreshPending;
     private bool _locatingCurrent;
     private long _locatorPlayingId;
+    private long _locatorContentsVersion;
+    private long _locatorCachedVersion = -1;
+    private long _locatorCachedId = -1;
+    private bool _locatorCachedPlaylist;
+    private bool _locatorCachedContains;
     private CancellationTokenSource? _trackPlayIntentRequest;
     private int _trackPlayIntentGeneration;
     private bool _playIntentPreparing;
@@ -36,7 +41,7 @@ public sealed partial class MainWindow
     {
         if (_trackLocatingReady) return;
         _trackLocatingReady = true;
-        _tracks.CollectionChanged += (_, _) => QueueTrackLocatorRefresh();
+        _tracks.CollectionChanged += (_, _) => { _locatorContentsVersion++; QueueTrackLocatorRefresh(); };
         _player.StateChanged += (_, _) =>
         {
             var id = _player.CurrentTrack?.Id ?? 0;
@@ -68,8 +73,16 @@ public sealed partial class MainWindow
     {
         if (!_trackLocatingReady || _closed) return;
         var id = _player.CurrentTrack?.Id ?? 0;
-        var contains = id > 0 && (_page == "playlist" && _playlistTrackIndex.Count > 0
-            ? _playlistTrackIndex.ContainsKey(id) : _tracks.Any(track => track.Id == id));
+        var indexedPlaylist = _page == "playlist" && _playlistTrackIndex.Count > 0;
+        if (_locatorCachedVersion != _locatorContentsVersion || _locatorCachedId != id || _locatorCachedPlaylist != indexedPlaylist)
+        {
+            _locatorCachedVersion = _locatorContentsVersion;
+            _locatorCachedId = id;
+            _locatorCachedPlaylist = indexedPlaylist;
+            _locatorCachedContains = id > 0 && (indexedPlaylist
+                ? _playlistTrackIndex.ContainsKey(id) : _tracks.Any(track => track.Id == id));
+        }
+        var contains = _locatorCachedContains;
         LocateCurrentButton.Visibility = contains && TracksView.Visibility == Visibility.Visible && !_pageLoading
             ? Visibility.Visible : Visibility.Collapsed;
         ArtistLocateCurrentButton.Visibility = contains && _page == "artist" && !_artistAlbumsVisible && !_pageLoading

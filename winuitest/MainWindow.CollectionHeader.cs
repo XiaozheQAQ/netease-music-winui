@@ -23,6 +23,10 @@ public sealed partial class MainWindow
 
     private void ResetCollectionHeader()
     {
+        StopCollectionHeaderMotion();
+        _collectionHeaderReveal = 0;
+        _collectionExpandedOpacity = 1;
+        ApplyCollectionHeaderOpacity();
         _activePlaylist = null;
         _collectionHeaderTransition++;
         _collectionHeaderCompact = false;
@@ -92,6 +96,9 @@ public sealed partial class MainWindow
         // scroll extent, so entering/leaving compact mode never jumps the list.
         var threshold = Math.Max(24, CollectionHeader.ActualHeight
             + CollectionHeader.Margin.Top + CollectionHeader.Margin.Bottom - 56);
+        var fade = Math.Clamp((threshold - _trackListScroller.VerticalOffset) / 64d, 0, 1);
+        _collectionExpandedOpacity = fade * fade * (3 - 2 * fade);
+        ApplyCollectionHeaderOpacity();
         var compact = _trackListScroller.VerticalOffset >= threshold;
         if (_collectionHeaderCompact == compact) return;
         _collectionHeaderCompact = compact;
@@ -99,18 +106,26 @@ public sealed partial class MainWindow
         if (compact)
         {
             _collectionHeaderOccludesContent = true;
+            AnimateCollectionHeaderReveal(1);
             UpdateCollectionHeaderClipping();
-            _ = _motion.RevealAsync(CompactCollectionHeader, offset: -6, durationMs: 220);
+            _ = _motion.RevealAsync(CompactCollectionHeader, offset: -8, durationMs: 320);
         }
-        else _ = HideCollectionHeaderAsync(transition);
+        else
+        {
+            AnimateCollectionHeaderReveal(0);
+            _ = HideCollectionHeaderAsync(transition);
+        }
     }
 
     private async Task HideCollectionHeaderAsync(int transition)
     {
         // Keep rows out of the transparent heading until its exit completes.
         // A reverse scroll or page change invalidates this completion callback.
-        if (!await _motion.HideAsync(CompactCollectionHeader, offset: -6, durationMs: 180)
+        if (!await _motion.HideAsync(CompactCollectionHeader, offset: -8, durationMs: 320)
             || _closed || transition != _collectionHeaderTransition) return;
+        StopCollectionHeaderMotion();
+        _collectionHeaderReveal = 0;
+        ApplyCollectionHeaderOpacity();
         _collectionHeaderOccludesContent = false;
         RestoreCollectionContentClip();
     }

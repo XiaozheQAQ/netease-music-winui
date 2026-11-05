@@ -89,7 +89,8 @@ public sealed partial class MainWindow
         // Mica/surface as the page, with no guessed active/inactive fallback color.
         var slot = LayoutInformation.GetLayoutSlot(CompactCollectionHeader);
         var contentTop = presenter.TransformToVisual(TracksView).TransformPoint(new Point()).Y;
-        var top = Math.Clamp(slot.Y + CompactCollectionHeader.Margin.Top + height - contentTop, 0, presenter.ActualHeight);
+        var top = Math.Clamp(slot.Y + CompactCollectionHeader.Margin.Top + height - contentTop, 0, presenter.ActualHeight)
+            * _collectionHeaderReveal;
         var contentRect = new Rect(0, top, presenter.ActualWidth, Math.Max(0, presenter.ActualHeight - top));
         if (_trackContentOriginalClip is { } original) contentRect.Intersect(original.Rect);
         SetCollectionClipRect(_collectionContentClip, contentRect);

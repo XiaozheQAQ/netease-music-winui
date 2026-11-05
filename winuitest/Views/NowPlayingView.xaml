@@ -111,43 +111,55 @@
                         <Button x:Name="OptionsButton" Style="{StaticResource QuietButton}" Grid.Column="2" AutomationProperties.Name="播放选项" ToolTipService.ToolTip="播放选项">
                             <Button.Resources><SolidColorBrush x:Key="ButtonBackground" Color="#14FFFFFF" /></Button.Resources>
                             <controls:FilledIcon Kind="More" FontSize="20" />
-                            <Button.Flyout><Flyout Placement="Top">
-                                <StackPanel Width="240" Spacing="16">
-                                    <TextBlock Text="歌词" FontSize="13" FontWeight="SemiBold" Foreground="#BFFFFFFF" />
-                                    <Grid ColumnSpacing="16" MinHeight="40">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                        <TextBlock Text="翻译" FontSize="14" VerticalAlignment="Center" />
-                                        <ToggleSwitch x:Name="TranslationSwitch" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="0" OnContent="" OffContent="" IsOn="True" Toggled="SubtitleSwitch_Toggled" AutomationProperties.Name="显示翻译" />
-                                    </Grid>
-                                    <Grid ColumnSpacing="16" MinHeight="40">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                        <TextBlock Text="罗马化" FontSize="14" VerticalAlignment="Center" />
-                                        <ToggleSwitch x:Name="RomanizationSwitch" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="0" OnContent="" OffContent="" IsOn="True" Toggled="SubtitleSwitch_Toggled" AutomationProperties.Name="显示罗马化" />
-                                    </Grid>
-                                    <Border Height="1" Background="#18FFFFFF" Margin="0,2" />
-                                    <Grid ColumnSpacing="16" MinHeight="24">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                        <TextBlock Text="歌词校准" FontSize="14" VerticalAlignment="Center" />
-                                        <TextBlock x:Name="CorrectionValue" Grid.Column="1" Text="0.0 s" FontSize="14" Foreground="#BFFFFFFF" HorizontalAlignment="Right" VerticalAlignment="Center" />
-                                    </Grid>
-                                    <Grid ColumnSpacing="8">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                        <Button x:Name="EarlierLyricsButton" Content="−0.5 s" HorizontalAlignment="Stretch" CornerRadius="16" Click="EarlierLyrics_Click" AutomationProperties.Name="歌词提前半秒" ToolTipService.ToolTip="歌词提前半秒" />
-                                        <Button x:Name="LaterLyricsButton" Grid.Column="1" Content="+0.5 s" HorizontalAlignment="Stretch" CornerRadius="16" Click="LaterLyrics_Click" AutomationProperties.Name="歌词延后半秒" ToolTipService.ToolTip="歌词延后半秒" />
-                                        <Button x:Name="ResetLyricsButton" Grid.Column="2" Content="重置" CornerRadius="16" Click="ResetLyrics_Click" AutomationProperties.Name="重置当前歌曲的歌词校准" />
-                                    </Grid>
-                                    <TextBlock x:Name="CorrectionHint" Text="按歌曲保存" FontSize="12" Foreground="#85FFFFFF" Margin="0,-8,0,0" />
-                                    <Border Height="1" Background="#18FFFFFF" Margin="0,2" />
-                                    <Grid ColumnSpacing="16" MinHeight="24">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                        <TextBlock Text="音量" FontSize="14" VerticalAlignment="Center" />
-                                        <TextBlock x:Name="VolumeValue" Grid.Column="1" Text="75%" FontSize="14" Foreground="#BFFFFFFF" HorizontalAlignment="Right" VerticalAlignment="Center" />
-                                    </Grid>
-                                    <Slider x:Name="VolumeBar" Minimum="0" Maximum="100" Value="75" StepFrequency="1" SmallChange="1" LargeChange="5" Margin="0,-10,0,0" ValueChanged="VolumeBar_ValueChanged" AutomationProperties.Name="音量百分比" />
-                                    <Rectangle Height="1" Fill="#20FFFFFF" />
-                                    <Button x:Name="CopyTrackLinkButton" Click="CopyTrackLink_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" CornerRadius="8" Padding="10,8" AutomationProperties.Name="复制播放地址"><StackPanel Orientation="Horizontal" Spacing="10"><controls:FilledIcon Kind="Copy" FontSize="16" VerticalAlignment="Center" /><TextBlock Text="复制播放地址" VerticalAlignment="Center" /></StackPanel></Button>
-                                </StackPanel>
-                            </Flyout></Button.Flyout>
+                            <Button.Flyout>
+                                <Flyout Placement="Top">
+                                    <Flyout.FlyoutPresenterStyle>
+                                        <Style TargetType="FlyoutPresenter" BasedOn="{StaticResource DefaultFlyoutPresenterStyle}">
+                                            <Setter Property="Padding" Value="14,10" />
+                                            <Setter Property="CornerRadius" Value="12" />
+                                        </Style>
+                                    </Flyout.FlyoutPresenterStyle>
+                                    <StackPanel MinWidth="232" MaxWidth="288" Spacing="6">
+                                        <Grid ColumnSpacing="18" MinHeight="34">
+                                            <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
+                                            <Grid ColumnSpacing="6">
+                                                <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                <TextBlock Text="翻译" FontSize="14" VerticalAlignment="Center" />
+                                                <ToggleSwitch x:Name="TranslationSwitch" Grid.Column="1" MinWidth="0" MinHeight="32" OnContent="" OffContent="" IsOn="True" Toggled="SubtitleSwitch_Toggled" AutomationProperties.Name="显示翻译" />
+                                            </Grid>
+                                            <Grid Grid.Column="1" ColumnSpacing="6">
+                                                <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                <TextBlock Text="罗马化" FontSize="14" VerticalAlignment="Center" />
+                                                <ToggleSwitch x:Name="RomanizationSwitch" Grid.Column="1" MinWidth="0" MinHeight="32" OnContent="" OffContent="" IsOn="True" Toggled="SubtitleSwitch_Toggled" AutomationProperties.Name="显示罗马化" />
+                                            </Grid>
+                                        </Grid>
+                                        <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                                        <Grid ColumnSpacing="4" MinHeight="34">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="歌词校准" FontSize="14" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                            <Button x:Name="EarlierLyricsButton" Grid.Column="1" Content="−" Width="30" Height="30" Padding="0" CornerRadius="8" Click="EarlierLyrics_Click" ToolTipService.ToolTip="提前 0.5 秒" AutomationProperties.Name="歌词提前半秒" />
+                                            <TextBlock x:Name="CorrectionValue" Grid.Column="2" Text="0.0 s" MinWidth="45" FontSize="13" TextAlignment="Center" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.HelpText="仅调整当前歌曲的歌词时间" />
+                                            <Button x:Name="LaterLyricsButton" Grid.Column="3" Content="+" Width="30" Height="30" Padding="0" CornerRadius="8" Click="LaterLyrics_Click" ToolTipService.ToolTip="延后 0.5 秒" AutomationProperties.Name="歌词延后半秒" />
+                                            <Button x:Name="ResetLyricsButton" Grid.Column="4" Width="30" Height="30" Padding="0" CornerRadius="8" Click="ResetLyrics_Click" ToolTipService.ToolTip="重置校准" AutomationProperties.Name="重置当前歌曲的歌词校准">
+                                                <controls:FilledIcon Kind="Refresh" FontSize="14" />
+                                            </Button>
+                                        </Grid>
+                                        <Grid ColumnSpacing="8" MinHeight="32">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                            <TextBlock Text="音量" FontSize="14" VerticalAlignment="Center" />
+                                            <Slider x:Name="VolumeBar" Grid.Column="1" Minimum="0" Maximum="100" Value="75" StepFrequency="1" SmallChange="1" LargeChange="5" VerticalAlignment="Center" ValueChanged="VolumeBar_ValueChanged" AutomationProperties.Name="音量百分比" />
+                                            <TextBlock x:Name="VolumeValue" Grid.Column="2" Text="75%" MinWidth="37" TextAlignment="Right" FontSize="13" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        </Grid>
+                                        <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                                        <Button x:Name="CopyTrackLinkButton" Click="CopyTrackLink_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" MinHeight="32" CornerRadius="7" Padding="6,4" Background="Transparent" BorderThickness="0" AutomationProperties.Name="复制播放地址">
+                                            <StackPanel Orientation="Horizontal" Spacing="9"><controls:FilledIcon Kind="Copy" FontSize="15" VerticalAlignment="Center" /><TextBlock Text="复制播放地址" FontSize="14" VerticalAlignment="Center" /></StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
                         </Button>
                     </Grid>
                     <Slider x:Name="SeekBar" Minimum="0" Maximum="1" CornerRadius="3" Margin="0,16,0,0" ValueChanged="SeekBar_ValueChanged" IsEnabled="False" AutomationProperties.Name="沉浸播放进度">
