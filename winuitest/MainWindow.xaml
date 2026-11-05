@@ -45,7 +45,7 @@
             <Style x:Key="TrackTextLinkStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
                 <Setter Property="Foreground" Value="{ThemeResource LumaTextSecondaryBrush}" />
                 <Setter Property="FontSize" Value="12" /><Setter Property="MinHeight" Value="0" /><Setter Property="MinWidth" Value="0" />
-                <Setter Property="Padding" Value="0" /><Setter Property="HorizontalContentAlignment" Value="Left" />
+                <Setter Property="Padding" Value="0" /><Setter Property="HorizontalAlignment" Value="Left" /><Setter Property="HorizontalContentAlignment" Value="Left" />
                 <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
                     <ContentPresenter x:Name="LinkContent" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" Foreground="{TemplateBinding Foreground}" Padding="{TemplateBinding Padding}" HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalContentAlignment="Center" Background="Transparent">
                         <VisualStateManager.VisualStateGroups><VisualStateGroup x:Name="CommonStates">
@@ -64,12 +64,12 @@
                         <TextBlock Tag="TrackTitle" Text="{x:Bind Title}" FontWeight="SemiBold" FontSize="14" TextTrimming="CharacterEllipsis" />
                         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                             <Border x:Name="TrackAccessBadge" Visibility="{x:Bind controls:TrackVisualState.BadgeVisibility(AccessLabel)}" CornerRadius="3" Padding="4,1" Margin="0,0,6,0" Background="{ThemeResource TrialBadgeBackgroundBrush}" ToolTipService.ToolTip="{x:Bind AccessDescription}" VerticalAlignment="Center"><TextBlock Text="{x:Bind AccessLabel}" FontSize="9" FontWeight="SemiBold" Foreground="{ThemeResource TrialBadgeForegroundBrush}" /></Border>
-                            <controls:HandButton x:Name="TrackArtistLink" Grid.Column="1" Tag="{x:Bind}" Style="{StaticResource TrackTextLinkStyle}" Click="TrackArtist_Click" HorizontalAlignment="Stretch" ToolTipService.ToolTip="查看歌手作品"><TextBlock Text="{x:Bind Artist}" FontSize="12" TextTrimming="CharacterEllipsis" /></controls:HandButton>
+                            <controls:HandButton x:Name="TrackArtistLink" Grid.Column="1" Tag="{x:Bind}" Style="{StaticResource TrackTextLinkStyle}" Click="TrackArtist_Click" ToolTipService.ToolTip="查看歌手作品"><TextBlock Text="{x:Bind Artist}" FontSize="12" TextTrimming="CharacterEllipsis" /></controls:HandButton>
                         </Grid>
                     </StackPanel>
                     <StackPanel controls:TrackColumnsGrid.Field="Title" Spacing="9" VerticalAlignment="Center" Visibility="{x:Bind controls:TrackVisualState.Visible(IsMetadataLoading)}" IsHitTestVisible="False"><Border Height="12" Width="160" MaxWidth="160" HorizontalAlignment="Left" Background="{ThemeResource LumaCardPlaceholderBrush}" CornerRadius="5" /><Border Height="10" Width="88" HorizontalAlignment="Left" Background="{ThemeResource LumaCardPlaceholderBrush}" CornerRadius="4" /></StackPanel>
                     <Grid controls:TrackColumnsGrid.Field="Album" VerticalAlignment="Center">
-                        <controls:HandButton x:Name="TrackAlbumLink" Tag="{x:Bind}" Style="{StaticResource TrackTextLinkStyle}" Click="TrackAlbum_Click" HorizontalAlignment="Stretch" ToolTipService.ToolTip="查看专辑" Visibility="{x:Bind controls:TrackVisualState.Visible(IsMetadataLoaded)}"><TextBlock Text="{x:Bind Album}" FontSize="12" TextTrimming="CharacterEllipsis" /></controls:HandButton>
+                        <controls:HandButton x:Name="TrackAlbumLink" Tag="{x:Bind}" Style="{StaticResource TrackTextLinkStyle}" Click="TrackAlbum_Click" ToolTipService.ToolTip="查看专辑" Visibility="{x:Bind controls:TrackVisualState.Visible(IsMetadataLoaded)}"><TextBlock Text="{x:Bind Album}" FontSize="12" TextTrimming="CharacterEllipsis" /></controls:HandButton>
                         <Border Height="11" Width="88" HorizontalAlignment="Left" CornerRadius="5" Background="{ThemeResource LumaCardPlaceholderBrush}" Visibility="{x:Bind controls:TrackVisualState.Visible(IsMetadataLoading)}" IsHitTestVisible="False" />
                     </Grid>
                     <TextBlock controls:TrackColumnsGrid.Field="Duration" Text="{x:Bind DisplayDuration}" FontSize="12" Foreground="{ThemeResource LumaTextSecondaryBrush}" VerticalAlignment="Center" HorizontalAlignment="Right" Visibility="{x:Bind controls:TrackVisualState.Visible(IsMetadataLoaded)}" />
@@ -189,7 +189,7 @@
                             </controls:TrackColumnsGrid>
                         </StackPanel>
                         <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,144,0,0" Spacing="12" MaxWidth="360"><controls:FilledIcon x:Name="EmptyIcon" Kind="Search" Foreground="{ThemeResource LumaTextTertiaryBrush}" FontSize="40" /><TextBlock x:Name="EmptyTitle" Text="搜索音乐" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" /><TextBlock x:Name="EmptyDescription" Text="输入歌曲或歌手" FontSize="12" Foreground="{ThemeResource LumaTextSecondaryBrush}" TextWrapping="Wrap" TextAlignment="Center" /></StackPanel>
-                        <Button x:Name="LocateCurrentButton" Content="定位正在播放" Click="LocateCurrent_Click" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,22,16" Padding="16,10" CornerRadius="20" Style="{StaticResource AccentButtonStyle}" AutomationProperties.Name="定位正在播放的歌曲" />
+                        <Button x:Name="LocateCurrentButton" Click="LocateCurrent_Click" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,22,16" Width="44" Height="44" Padding="0" CornerRadius="22" Style="{StaticResource AccentButtonStyle}" ToolTipService.ToolTip="定位正在播放" AutomationProperties.Name="定位正在播放的歌曲"><PathIcon Width="20" Height="20" Data="F1 M10,3 A7,7 0 1 1 10,17 A7,7 0 1 1 10,3 Z M10,5 A5,5 0 1 0 10,15 A5,5 0 1 0 10,5 Z M9,0 H11 V6 H9 Z M9,14 H11 V20 H9 Z M0,9 H6 V11 H0 Z M14,9 H20 V11 H14 Z M10,8.5 A1.5,1.5 0 1 1 10,11.5 A1.5,1.5 0 1 1 10,8.5 Z" /></Button>
                         <ProgressBar x:Name="SearchAppendProgress" Grid.Row="1" Width="96" Height="2" IsIndeterminate="False" Visibility="Collapsed" HorizontalAlignment="Center" Margin="0,8,0,4" AutomationProperties.Name="正在加载更多歌曲" />
                     </Grid>
                     <ScrollViewer x:Name="CloudView" Visibility="Collapsed" HorizontalScrollBarVisibility="Disabled" HorizontalScrollMode="Disabled" HorizontalContentAlignment="Stretch">
@@ -228,7 +228,7 @@
                                 </StackPanel></DataTemplate></GridView.ItemTemplate>
                             </GridView>
                             <TextBlock x:Name="ArtistEmptyText" Text="暂无作品" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{ThemeResource LumaTextSecondaryBrush}" FontSize="15" />
-                            <Button x:Name="ArtistLocateCurrentButton" Content="定位正在播放" Click="LocateCurrent_Click" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,22,16" Padding="16,10" CornerRadius="20" Style="{StaticResource AccentButtonStyle}" AutomationProperties.Name="定位正在播放的歌曲" />
+                            <Button x:Name="ArtistLocateCurrentButton" Click="LocateCurrent_Click" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,22,16" Width="44" Height="44" Padding="0" CornerRadius="22" Style="{StaticResource AccentButtonStyle}" ToolTipService.ToolTip="定位正在播放" AutomationProperties.Name="定位正在播放的歌曲"><PathIcon Width="20" Height="20" Data="F1 M10,3 A7,7 0 1 1 10,17 A7,7 0 1 1 10,3 Z M10,5 A5,5 0 1 0 10,15 A5,5 0 1 0 10,5 Z M9,0 H11 V6 H9 Z M9,14 H11 V20 H9 Z M0,9 H6 V11 H0 Z M14,9 H20 V11 H14 Z M10,8.5 A1.5,1.5 0 1 1 10,11.5 A1.5,1.5 0 1 1 10,8.5 Z" /></Button>
                         </Grid>
                         <ProgressBar x:Name="ArtistAppendProgress" Grid.Row="3" IsIndeterminate="False" Visibility="Collapsed" Height="3" Margin="12,0" />
                     </Grid>
@@ -277,6 +277,16 @@
                                         <ComboBox x:Name="ThemeSelector" Grid.Column="2" HorizontalAlignment="Stretch" VerticalAlignment="Center" SelectionChanged="ThemeSelector_SelectionChanged" AutomationProperties.Name="应用主题">
                                             <ComboBoxItem Content="跟随系统" Tag="System" /><ComboBoxItem Content="浅色" Tag="Light" /><ComboBoxItem Content="深色" Tag="Dark" />
                                         </ComboBox>
+                                    </Grid>
+                                </Border>
+                                <Border Background="{ThemeResource LumaSurfaceBrush}" BorderBrush="{ThemeResource LumaBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20,18">
+                                    <Grid ColumnSpacing="16" RowSpacing="12">
+                                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <controls:FilledIcon Kind="Palette" FontSize="20" VerticalAlignment="Center" Foreground="{ThemeResource LumaTextSecondaryBrush}" />
+                                        <TextBlock Grid.Column="1" Text="主色" VerticalAlignment="Center" FontSize="14" />
+                                        <Button x:Name="CustomAccentButton" Grid.Column="2" Click="CustomAccent_Click" Content="自定义…" AutomationProperties.Name="自定义主色" />
+                                        <StackPanel x:Name="AccentPresetPanel" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="4" />
                                     </Grid>
                                 </Border>
                                 <Border Background="{ThemeResource LumaSurfaceBrush}" BorderBrush="{ThemeResource LumaBorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20,18">
@@ -351,15 +361,22 @@
                 <Grid.ColumnDefinitions><ColumnDefinition x:Name="PlayerInfoColumn" Width="260" /><ColumnDefinition x:Name="PlayerTransportColumn" Width="*" MinWidth="202" /><ColumnDefinition x:Name="PlayerToolsColumn" Width="260" /></Grid.ColumnDefinitions>
                 <Grid VerticalAlignment="Center" ColumnSpacing="4">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="32" /></Grid.ColumnDefinitions>
+                    <Grid x:Name="PlayerInfoHost">
                     <controls:HandButton x:Name="PlayerInfoButton" Click="ToggleLyrics_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Background="Transparent" BorderThickness="0" CornerRadius="10" Padding="6" AutomationProperties.Name="展开正在播放的歌词" ToolTipService.ToolTip="展开歌词">
                         <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                             <Border x:Name="PlayerCoverBorder" Width="52" Height="52" CornerRadius="6" Background="{ThemeResource LumaCardPlaceholderBrush}"><Grid><controls:FilledIcon Kind="Music" Foreground="{ThemeResource LumaTextTertiaryBrush}" FontSize="23" /><Image x:Name="PlayerArtwork" Stretch="Fill" /></Grid></Border>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
                                 <TextBlock x:Name="PlayerTitle" Text="未在播放" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                <TextBlock x:Name="PlayerArtist" Text="选择歌曲" Foreground="{ThemeResource LumaTextSecondaryBrush}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                <TextBlock x:Name="PlayerArtistSlot" Text="{Binding Text, ElementName=PlayerArtist}" Opacity="0" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw" FontSize="11" TextTrimming="CharacterEllipsis" />
                             </StackPanel>
                         </Grid>
                     </controls:HandButton>
+                    <!-- A sibling overlay keeps native buttons independent. Its bounds follow
+                         the arranged artist text slot, leaving the rest of the card to lyrics. -->
+                    <Canvas>
+                        <controls:HandButton x:Name="PlayerArtistButton" Click="PlayerArtist_Click" PointerEntered="PlayerArtist_PointerEntered" PointerExited="PlayerArtist_PointerExited" Style="{StaticResource TrackTextLinkStyle}" VerticalAlignment="Top" ToolTipService.ToolTip="查看歌手作品" AutomationProperties.Name="查看正在播放歌曲的歌手作品"><TextBlock x:Name="PlayerArtist" Text="选择歌曲" FontSize="11" TextTrimming="CharacterEllipsis" /></controls:HandButton>
+                    </Canvas>
+                    </Grid>
                     <Button x:Name="PlayerFavorite" Grid.Column="1" Style="{StaticResource PlayerIconButton}" VerticalAlignment="Center" Click="PlayerFavorite_Click" IsEnabled="False" ToolTipService.ToolTip="收藏当前歌曲" AutomationProperties.Name="收藏当前歌曲"><controls:FilledIcon x:Name="PlayerFavoriteIcon" Kind="HeartOff" FontSize="17" Foreground="{ThemeResource LumaTextSecondaryBrush}" /></Button>
                 </Grid>
                 <Grid x:Name="PlayerTransport" Grid.Column="1" MaxWidth="640" VerticalAlignment="Center" RowSpacing="2">

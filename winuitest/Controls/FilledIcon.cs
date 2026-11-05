@@ -72,6 +72,7 @@ public static class FilledIcons
     public const string Loading = "\uF712";
     public const string Keyboard = "\uF4C2";
     public const string Album = "\uE00F";
+    public const string Copy = "\uF32B";
 
     public static string Get(string? kind) => kind switch
     {
@@ -88,7 +89,7 @@ public static class FilledIcons
         nameof(Volume) => Volume, nameof(VolumeMute) => VolumeMute,
         nameof(Lyrics) => Lyrics, nameof(Queue) => Queue, nameof(Add) => Add,
         nameof(Palette) => Palette, nameof(Loading) => Loading,
-        nameof(Keyboard) => Keyboard, nameof(Album) => Album,
+        nameof(Keyboard) => Keyboard, nameof(Album) => Album, nameof(Copy) => Copy,
         _ => Music
     };
 }

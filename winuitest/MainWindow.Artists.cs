@@ -54,6 +54,8 @@ public sealed partial class MainWindow
     private void RefreshArtistLinks()
     {
         if (_player is null) return;
+        PlayerArtistButton.IsEnabled = _player.CurrentTrack is { Id: > 0 };
+        PlayerArtistButton.IsHitTestVisible = PlayerArtistButton.IsEnabled;
         if (ArtistSongs is not null && ArtistSongs.Visibility == Visibility.Visible)
             UpdatePlayingTrackIndicators(ArtistSongs);
     }

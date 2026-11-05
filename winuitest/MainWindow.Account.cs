@@ -207,7 +207,7 @@ public sealed partial class MainWindow
 
     private async Task ShowLoginAsync()
     {
-        if (_loginDialogOpen || _accountBusy || _closed) return;
+        if (_loginDialogOpen || _accountBusy || _accentDialogOpen || _shortcutsDialogOpen || _trackDialogOpen || _closed) return;
         _loginDialogOpen = true;
         try
         {

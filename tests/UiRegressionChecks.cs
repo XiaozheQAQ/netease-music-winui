@@ -256,6 +256,9 @@ public sealed partial class MainWindow
                 checks.Add(step);
             }
 
+            step = "accent-settings";
+            await RunAccentUiChecksAsync(checks, budget.Token);
+
             step = "compact-heading-preserves-scrollbar-and-surface";
             var originalSize = AppWindow.Size;
             var originalContentClip = Find<ScrollContentPresenter>(TrackList, _ => true)?.Clip;
@@ -310,10 +313,10 @@ public sealed partial class MainWindow
 
             step = "bottom-metadata-opens-lyrics";
             Assert(IsDescendantOf(PlayerTitle, PlayerInfoButton)
-                && IsDescendantOf(PlayerArtist, PlayerInfoButton)
+                && IsDescendantOf(PlayerArtist, PlayerArtistButton)
                 && IsDescendantOf(PlayerCoverBorder, PlayerInfoButton));
             Assert(Find<Button>(PlayerInfoButton, button => !ReferenceEquals(button, PlayerInfoButton)) is null);
-            Assert(Find<FrameworkElement>(Root, element => element.Name == "PlayerArtistButton") is null);
+            Assert(!IsDescendantOf(PlayerArtistButton, PlayerInfoButton));
             BeginPage("discover");
             Assert(ReferenceEquals(MainNavigation.SelectedItem, DiscoverNav) && DiscoverNav.IsSelected);
             InvokeButton(PlayerInfoButton);
@@ -435,6 +438,10 @@ public sealed partial class MainWindow
             BeginPage("recent");
             await pendingAlbum;
             Assert(_page == "recent" && _player.CurrentTrack?.Id == current.Id && !_player.IsPlaying);
+            checks.Add(step);
+
+            step = "text-only-track-links-and-circular-locator";
+            await RunTrackLinkHitChecksAsync();
             checks.Add(step);
 
             step = "playlist-first-page-only";

@@ -92,6 +92,26 @@ public sealed class LibraryStore
         }
     }
 
+    // Empty uses Luma's original per-theme palette. Store only opaque sRGB.
+    public string AccentColor
+    {
+        get => _data.AccentColor;
+        set
+        {
+            var color = NormalizeAccentColor(value);
+            if (_data.AccentColor == color) return;
+            _data.AccentColor = color;
+            Save();
+        }
+    }
+
+    private static string NormalizeAccentColor(string? value)
+    {
+        var color = value?.Trim();
+        return color is { Length: 7 } && color[0] == '#' && color.AsSpan(1).IndexOfAnyExcept("0123456789abcdefABCDEF") < 0
+            ? color.ToUpperInvariant() : string.Empty;
+    }
+
     public void SavePlaybackSession(Track? currentTrack, IEnumerable<Track> queue, TimeSpan position)
     {
         ArgumentNullException.ThrowIfNull(queue);
@@ -197,6 +217,7 @@ public sealed class LibraryStore
             data.Volume = double.IsFinite(data.Volume) ? Math.Clamp(data.Volume, 0, 1) : 0.75;
             if (!Enum.IsDefined(data.Repeat)) data.Repeat = RepeatMode.Off;
             if (!Enum.IsDefined(data.Theme)) data.Theme = ThemePreference.System;
+            data.AccentColor = NormalizeAccentColor(data.AccentColor);
             data.PlaybackQuality = AudioQuality.Normalize(data.PlaybackQuality);
             data.AudioOutputDeviceId = NormalizeAudioOutputDeviceId(data.AudioOutputDeviceId);
             data.LastSession = NormalizeSession(data.LastSession);
@@ -272,6 +293,7 @@ public sealed class LibraryStore
         public bool Shuffle { get; set; }
         public RepeatMode Repeat { get; set; }
         public ThemePreference Theme { get; set; } = ThemePreference.System;
+        public string AccentColor { get; set; } = string.Empty;
         public string PlaybackQuality { get; set; } = AudioQuality.Default;
         public string AudioOutputDeviceId { get; set; } = string.Empty;
         public PlaybackSessionSnapshot LastSession { get; set; } = new();

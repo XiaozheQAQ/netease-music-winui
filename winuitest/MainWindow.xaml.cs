@@ -104,6 +104,7 @@ public sealed partial class MainWindow : Window
         ThemeSelector.SelectedIndex = (int)_library.Theme;
         QualitySelector.SelectedItem = QualitySelector.Items.OfType<ComboBoxItem>().FirstOrDefault(item => (string)item.Tag == _library.PlaybackQuality);
         _themeReady = true;
+        InitializeAccentSettings();
         ApplyTheme();
         Root.ActualThemeChanged += Root_ActualThemeChanged;
         _uiSettings.ColorValuesChanged += SystemColorsChanged;
@@ -133,6 +134,7 @@ public sealed partial class MainWindow : Window
         NowPlaying.CopyTrackLinkRequested += (_, _) => { if (_player.CurrentTrack is Track track) CopyTrackLinks(new[] { track }); };
         NowPlaying.RepeatRequested += (_, _) => Repeat_Click(RepeatButton, new RoutedEventArgs());
         InitializeArtistUi();
+        InitializePlayerLinks();
         InitializeTrackLocating();
         InitializeWindowChrome();
         SelectNav("discover");
@@ -725,16 +727,19 @@ public sealed partial class MainWindow : Window
     }
     private void SystemColorsChanged(UISettings sender, object args) => DispatcherQueue.TryEnqueue(() =>
     {
-        if (!_closed && _library.Theme == ThemePreference.System) ApplyTheme();
+        if (_closed) return;
+        if (_library.Theme == ThemePreference.System) ApplyTheme();
+        else UpdateWindowTheme();
     });
-    private void Root_ActualThemeChanged(FrameworkElement sender, object args) { if (_themeReady) UpdateWindowTheme(); }
+    private void Root_ActualThemeChanged(FrameworkElement sender, object args) { if (_themeReady && !_updatingAccentResources) UpdateWindowTheme(); }
     private Brush ThemeBrush(string key)
     {
-        var palette = (ResourceDictionary)Application.Current.Resources.ThemeDictionaries[Root.ActualTheme == ElementTheme.Dark ? "Dark" : "Light"];
+        var palette = (ResourceDictionary)Application.Current.Resources.ThemeDictionaries[IsAccentHighContrast ? "HighContrast" : Root.ActualTheme == ElementTheme.Dark ? "Dark" : "Light"];
         return (Brush)palette[key];
     }
     private void UpdateWindowTheme()
     {
+        _accentHighContrast = _accentAccessibility.HighContrast;
         UpdateCaptionTheme();
         UpdateFavorite();
         UpdateTrackHearts(TrackList);

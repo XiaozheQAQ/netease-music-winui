@@ -11,5 +11,6 @@ public sealed partial class MainWindow
         UpdatePlayingTrackIndicators();
         UpdateTrackHearts(QueueList);
         UpdateTrackHearts(ArtistSongs);
+        if (_accentDialog is not null) _accentDialog.RequestedTheme = Root.ActualTheme;
     }
 }

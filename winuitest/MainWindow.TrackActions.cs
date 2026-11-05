@@ -122,7 +122,7 @@ public sealed partial class MainWindow
             return Task.CompletedTask;
         });
         menu.Items.Add(enqueue);
-        var copyLink = new MenuFlyoutItem { Text = selection.Length > 1 ? "复制所选播放地址" : "复制播放地址", Icon = new SymbolIcon(Symbol.Copy) };
+        var copyLink = new MenuFlyoutItem { Text = selection.Length > 1 ? "复制所选播放地址" : "复制播放地址", Icon = new FilledIcon { Kind = "Copy" } };
         copyLink.Click += (_, _) => CopyTrackLinks(selection);
         menu.Items.Add(copyLink);
         menu.Items.Add(new MenuFlyoutSeparator());
@@ -194,6 +194,7 @@ public sealed partial class MainWindow
         {
             if (remove && selection.Length > 1)
             {
+                if (_trackDialogOpen || _loginDialogOpen || _shortcutsDialogOpen || _accentDialogOpen) return;
                 var confirm = new ContentDialog
                 {
                     XamlRoot = Root.XamlRoot, RequestedTheme = Root.ActualTheme,

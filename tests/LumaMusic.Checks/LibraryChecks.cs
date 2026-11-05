@@ -57,6 +57,10 @@ internal static class LibraryChecks
             Program.Check(new LibraryStore(directory).Theme == ThemePreference.Light, "Explicit light theme was not persisted.");
             sessionReloaded.Theme = ThemePreference.System;
             Program.Check(new LibraryStore(directory).Theme == ThemePreference.System, "Following the system theme was not persisted.");
+            sessionReloaded.AccentColor = "#22bbaa";
+            Program.Check(new LibraryStore(directory).AccentColor == "#22BBAA", "Custom accent was not restored after reopening the library.");
+            sessionReloaded.AccentColor = "";
+            Program.Check(new LibraryStore(directory).AccentColor == "", "The original palette was not restored.");
             Program.Check(!reloaded.ToggleFavorite(first), "Removing a favorite failed.");
             Program.Check(new LibraryStore(directory).Favorites.Count == 0, "Favorite removal was not persisted.");
             VerifyBatchFavorites(reloaded, directory, first, second);
@@ -68,11 +72,12 @@ internal static class LibraryChecks
             var broken = new LibraryStore(directory);
             Program.Check(broken.Favorites.Count == 0 && broken.LastSaveError is not null, "Corrupt state was not recovered.");
             Program.Check(broken.Theme == ThemePreference.System && broken.LastSession.CurrentTrack is null, "Corrupt session/theme defaults were not recovered.");
-            File.WriteAllText(statePath, "{\"Favorites\":null,\"Recent\":null,\"Volume\":12,\"Repeat\":42,\"Theme\":42,\"LastSession\":null,\"AudioOutputDeviceId\":null}");
+            File.WriteAllText(statePath, "{\"Favorites\":null,\"Recent\":null,\"Volume\":12,\"Repeat\":42,\"Theme\":42,\"AccentColor\":\"not-a-color\",\"LastSession\":null,\"AudioOutputDeviceId\":null}");
             var invalid = new LibraryStore(directory);
             Program.Check(invalid.Volume == 1 && invalid.Repeat == RepeatMode.Off && invalid.Recent.Count == 0, "Invalid persisted values were not normalized.");
             Program.Check(invalid.Theme == ThemePreference.System && invalid.LastSession.PositionMs == 0, "Invalid theme or null session was not normalized.");
             Program.Check(invalid.AudioOutputDeviceId == string.Empty, "Null audio output must fall back to the system default.");
+            Program.Check(invalid.AccentColor == "", "An invalid persisted accent must use the built-in palette.");
             File.WriteAllText(statePath, "{\"LastSession\":{\"CurrentTrack\":{\"Id\":2,\"DurationMs\":10000},\"Queue\":[null,{\"Id\":-1},{\"Id\":3},{\"Id\":3}],\"PositionMs\":999999}}");
             var clamped = new LibraryStore(directory).LastSession;
             Program.Check(clamped.PositionMs == 10000 && clamped.Queue.Select(track => track.Id).SequenceEqual(new long[] { 2, 3 }),

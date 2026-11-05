@@ -145,7 +145,7 @@
                                     </Grid>
                                     <Slider x:Name="VolumeBar" Minimum="0" Maximum="100" Value="75" StepFrequency="1" SmallChange="1" LargeChange="5" Margin="0,-10,0,0" ValueChanged="VolumeBar_ValueChanged" AutomationProperties.Name="音量百分比" />
                                     <Rectangle Height="1" Fill="#20FFFFFF" />
-                                    <Button x:Name="CopyTrackLinkButton" Content="复制播放地址" Click="CopyTrackLink_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" CornerRadius="8" Padding="10,8" />
+                                    <Button x:Name="CopyTrackLinkButton" Click="CopyTrackLink_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" CornerRadius="8" Padding="10,8" AutomationProperties.Name="复制播放地址"><StackPanel Orientation="Horizontal" Spacing="10"><controls:FilledIcon Kind="Copy" FontSize="16" VerticalAlignment="Center" /><TextBlock Text="复制播放地址" VerticalAlignment="Center" /></StackPanel></Button>
                                 </StackPanel>
                             </Flyout></Button.Flyout>
                         </Button>

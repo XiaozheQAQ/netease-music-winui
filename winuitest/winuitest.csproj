@@ -8,9 +8,9 @@
     <Product>Luma Music</Product>
     <Company>XiaozheQAQ</Company>
     <Copyright>Copyright (c) 2026 XiaozheQAQ</Copyright>
-    <Version>1.0.5</Version>
+    <Version>1.0.6</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.5.0</FileVersion>
+    <FileVersion>1.0.6.0</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x86;x64;ARM64</Platforms>
     <Platform Condition="'$(Platform)' == '' Or '$(Platform)' == 'AnyCPU'">x64</Platform>
@@ -81,6 +81,8 @@
     <Compile Include="..\tests\TrayNativeChecks.cs" Link="Checks\TrayNativeChecks.cs" />
     <Compile Include="..\tests\UiRegressionChecks.cs" Link="Checks\UiRegressionChecks.cs" />
     <Compile Include="..\tests\LyricPresentationChecks.cs" Link="Checks\LyricPresentationChecks.cs" />
+    <Compile Include="..\tests\TrackLinkChecks.cs" Link="Checks\TrackLinkChecks.cs" />
+    <Compile Include="..\tests\AccentUiChecks.cs" Link="Checks\AccentUiChecks.cs" />
   </ItemGroup>
 
   <!--

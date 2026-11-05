@@ -117,7 +117,7 @@ public sealed partial class MainWindow
     private bool CanRunShortcut(ShortcutBinding binding)
     {
         var shortcut = binding.Accelerator;
-        if (_closed || !_startupReady || _loginDialogOpen || _shortcutsDialogOpen || _trackDialogOpen || !shortcut.IsEnabled) return false;
+        if (_closed || !_startupReady || _loginDialogOpen || _shortcutsDialogOpen || _trackDialogOpen || _accentDialogOpen || !shortcut.IsEnabled) return false;
         // Dismiss the focused flyout/dropdown before Escape closes the lyrics
         // underneath it. Other app commands, including Space, keep priority.
         if (shortcut.Key == VirtualKey.Escape && FocusIsInShortcutPopup()) return false;
@@ -237,7 +237,7 @@ public sealed partial class MainWindow
 
     private async Task ShowShortcutsAsync()
     {
-        if (_shortcutsDialogOpen || _loginDialogOpen || _closed) return;
+        if (_shortcutsDialogOpen || _loginDialogOpen || _trackDialogOpen || _accentDialogOpen || _closed) return;
         _shortcutsDialogOpen = true;
         try
         {

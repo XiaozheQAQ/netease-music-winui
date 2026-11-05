@@ -134,6 +134,36 @@
                         <GradientStop Color="{StaticResource LumaLyricsEndColor}" Offset="1" />
                     </LinearGradientBrush>
                 </ResourceDictionary>
+                <ResourceDictionary x:Key="HighContrast">
+                    <SolidColorBrush x:Key="LumaStartupBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <StaticResource x:Key="LumaHeroStartColor" ResourceKey="SystemColorWindowColor" />
+                    <StaticResource x:Key="LumaHeroMidColor" ResourceKey="SystemColorWindowColor" />
+                    <StaticResource x:Key="LumaHeroEndColor" ResourceKey="SystemColorWindowColor" />
+                    <StaticResource x:Key="LumaLyricsStartColor" ResourceKey="SystemColorWindowColor" />
+                    <StaticResource x:Key="LumaLyricsMidColor" ResourceKey="SystemColorWindowColor" />
+                    <StaticResource x:Key="LumaLyricsEndColor" ResourceKey="SystemColorWindowColor" />
+                    <SolidColorBrush x:Key="LumaWindowBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="LumaSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="LumaSidebarBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="LumaPlayerBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="LumaInspectorBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="LumaTextPrimaryBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="LumaTextSecondaryBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="LumaTextTertiaryBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="LumaAccentBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="LumaAccentTextBrush" Color="{ThemeResource SystemColorHotlightColor}" />
+                    <SolidColorBrush x:Key="LumaOnAccentBrush" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                    <SolidColorBrush x:Key="LumaCardPlaceholderBrush" Color="{ThemeResource SystemColorButtonFaceColor}" />
+                    <SolidColorBrush x:Key="LumaBorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="LumaSkeletonBrush" Color="{ThemeResource SystemColorGrayTextColor}" />
+                    <SolidColorBrush x:Key="LumaToastBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="LumaToastForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="LumaLyricMutedBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="LumaLyricActiveBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="LumaLyricCompletedBrush" Color="{ThemeResource SystemColorHotlightColor}" />
+                    <SolidColorBrush x:Key="LumaLyricCurrentBrush" Color="{ThemeResource SystemColorHotlightColor}" />
+                    <SolidColorBrush x:Key="LumaLyricsBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
     </Application.Resources>
