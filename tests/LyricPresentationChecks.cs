@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Windows.Foundation;
 using winuitest.Models;
+using winuitest.Views.Controls;
 
 namespace winuitest;
 
@@ -46,24 +47,28 @@ public sealed partial class MainWindow
                 new LyricLine { TimeMs = 10000, DurationMs = 1000, Text = "Next phrase" }
             });
             NowPlaying.UpdateLayout();
-            RequireLyricPresentation(empty.Visibility == Visibility.Collapsed && stack.Children.OfType<Button>().Count() == 2,
+            RequireLyricPresentation(empty.Visibility == Visibility.Collapsed && stack.Children.Count == 2,
                 "normal lyrics return after instrumental");
             var intro = FindLyricPresentationElement<Border>(stack, "LyricGapRow0");
             var interlude = FindLyricPresentationElement<Border>(stack, "LyricGapRow1");
+            var firstPhrase = ((StackPanel)stack.Children[0]).Children.OfType<Button>().Single();
+            var nextPhrase = ((StackPanel)stack.Children[1]).Children.OfType<Button>().Single();
+            var scroller = FindLyricPresentationElement<ScrollViewer>(NowPlaying, "LyricsScroller");
             var dots = LyricPresentationDots(intro);
-            var stableHeight = stack.ActualHeight;
             var correction = _library.GetLyricOffsetMs(_player.CurrentTrack!.Id);
             void At(double milliseconds) => NowPlaying.UpdateLyricsPosition(TimeSpan.FromMilliseconds(milliseconds + correction));
+            static bool Collapsed(Border row) => row.Visibility == Visibility.Collapsed && row.Height == 0;
+            double PhraseTop(Button phrase) => phrase.TransformToVisual(stack).TransformPoint(new Point()).Y;
 
             At(2000);
-            RequireLyricPresentation(intro.Opacity > .99 && interlude.Opacity == 0
+            RequireLyricPresentation(intro.Opacity > .99 && intro.ActualHeight == 48 && Collapsed(interlude)
                 && dots[0].Opacity > dots[1].Opacity && dots[1].Opacity > dots[2].Opacity,
                 "intro dots brighten in source-time order");
             RequireLyricPresentation(!intro.IsHitTestVisible && !interlude.IsHitTestVisible, "gap rows do not intercept lyric input");
             var paused = dots.Select(dot => dot.Opacity).ToArray();
             var pausedRow = intro.Opacity;
             await Task.Delay(90);
-            RequireLyricPresentation(intro.Opacity == pausedRow && dots.Select(dot => dot.Opacity).SequenceEqual(paused),
+            RequireLyricPresentation(intro.Opacity == pausedRow && intro.ActualHeight == 48 && dots.Select(dot => dot.Opacity).SequenceEqual(paused),
                 "paused gap does not advance from wall time");
             At(2000);
             RequireLyricPresentation(dots.Select(dot => dot.Opacity).SequenceEqual(paused), "same lyric clock is deterministic");
@@ -73,22 +78,65 @@ public sealed partial class MainWindow
             RequireLyricPresentation(dots[0].Opacity < advanced[0] && dots[1].Opacity < advanced[1]
                 && dots[2].Opacity < advanced[2], "backward seek rewinds each dot");
             At(4200);
-            RequireLyricPresentation(intro.Opacity == 0 && interlude.Opacity == 0, "next line hides intro dots");
+            RequireLyricPresentation(Collapsed(intro) && Collapsed(interlude), "finished and future gaps have no layout slot");
+            var compactHeight = stack.ActualHeight;
+            var compactNextTop = PhraseTop(nextPhrase);
+            RequireLyricPresentation(Math.Abs(compactNextTop - PhraseTop(firstPhrase) - firstPhrase.ActualHeight - stack.Spacing) <= 1.5,
+                "only normal lyric spacing remains");
             At(7500);
             var middleDots = LyricPresentationDots(interlude);
             RequireLyricPresentation(interlude.Opacity > .99 && middleDots[0].Opacity > middleDots[1].Opacity
                 && middleDots[1].Opacity > middleDots[2].Opacity, "explicit interlude uses its own source interval");
-            At(10000);
-            NowPlaying.UpdateLayout();
-            RequireLyricPresentation(interlude.Opacity == 0 && Math.Abs(stack.ActualHeight - stableHeight) <= .5
-                && intro.ActualHeight == 48 && interlude.ActualHeight == 48, "next line hides dots without changing layout");
+            RequireLyricPresentation(Math.Abs(stack.ActualHeight - compactHeight - 48) <= 1.5
+                && Math.Abs(PhraseTop(nextPhrase) - compactNextTop - 48) <= 1.5,
+                "the active gap occupies exactly its rendered height");
+            At(9660);
+            At(9840);
+            var halfway = PhraseTop(nextPhrase) - compactNextTop;
+            At(9960);
+            var lastPixels = PhraseTop(nextPhrase) - compactNextTop;
+            if (_uiSettings.AnimationsEnabled)
+                RequireLyricPresentation(halfway is > 20 and < 28 && lastPixels >= 0 && lastPixels < 5,
+                    "the phrase rises progressively as the countdown ends");
+            var previousOffset = scroller.VerticalOffset;
+            At(10000); // A normal forward frame across the boundary, not a seek.
+            RequireLyricPresentation(Collapsed(interlude) && Math.Abs(stack.ActualHeight - compactHeight) <= 1.5
+                && Math.Abs(PhraseTop(nextPhrase) - compactNextTop) <= 1.5, "finishing a gap reclaims all space");
+            if (_uiSettings.AnimationsEnabled)
+                RequireLyricPresentation(Math.Abs(scroller.VerticalOffset - previousOffset) < Math.Max(24, scroller.ViewportHeight * .1),
+                    "following the next phrase does not snap the scroll offset");
+            var anchor = LyricViewportLayout.CurrentLineAnchor(scroller.ViewportHeight, PhraseTop(nextPhrase) - PhraseTop(firstPhrase),
+                nextPhrase.ActualHeight, stack.Margin.Top);
+            var expectedOffset = Math.Clamp(PhraseTop(nextPhrase) + stack.Margin.Top - anchor, 0, scroller.ScrollableHeight);
+            for (var frame = 0; frame < 50 && Math.Abs(scroller.VerticalOffset - expectedOffset) > 2; frame++)
+            {
+                await Task.Delay(20);
+                At(10000);
+            }
+            RequireLyricPresentation(Math.Abs(scroller.VerticalOffset - expectedOffset) <= 2, "next phrase settles on its post-collapse anchor");
+
+            At(9920);
+            At(7500);
+            RequireLyricPresentation(Collapsed(intro) && interlude.ActualHeight == 48, "seeking backwards interrupts collapse");
+            At(2000);
+            RequireLyricPresentation(intro.ActualHeight == 48 && Collapsed(interlude), "only the latest seek occupies space");
+            At(10400);
+            RequireLyricPresentation(Collapsed(intro) && Collapsed(interlude) && Math.Abs(stack.ActualHeight - compactHeight) <= 1.5,
+                "seeking out of all gaps immediately restores normal layout");
+            At(9900);
+            NowPlaying.Visibility = Visibility.Collapsed;
+            At(7500);
+            RequireLyricPresentation(Collapsed(interlude), "hidden view interrupts the countdown");
+            NowPlaying.Visibility = Visibility.Visible;
+            At(7500);
+            RequireLyricPresentation(interlude.ActualHeight == 48, "reopening uses the current clock");
 
             NowPlaying.SetLyrics(new[]
             {
                 new LyricLine { TimeMs = 0, Text = "Untimed ending" },
                 new LyricLine { TimeMs = 10000, Text = "Next start only" }
             });
-            RequireLyricPresentation(!stack.Children.OfType<Border>().Any(row => row.Name.StartsWith("LyricGapRow", StringComparison.Ordinal)),
+            RequireLyricPresentation(Collapsed(interlude) && stack.Children.Count == 2 && stack.Children.All(child => child is Button),
                 "plain LRC does not invent an interlude or retain old gap rows");
 
             var repeat = FindLyricPresentationElement<Button>(NowPlaying, "RepeatButton");

@@ -123,6 +123,8 @@ public sealed partial class NowPlayingView : UserControl
             _lyricsClockMs = LyricTiming.ToLyricPosition(TimeSpan.FromSeconds(_position + _lyricOffset), _manualLyricOffsetMs).TotalMilliseconds;
         if (trackChanged)
         {
+            HideActiveLyricGap();
+            _lyricGaps = Array.Empty<LyricGap>();
             ReleaseLyricBlur();
             _manualScrollHeld = false;
             _lyricPointerDown = false;
@@ -238,7 +240,6 @@ public sealed partial class NowPlayingView : UserControl
         EmptyLyricsPanel.Visibility = _lines.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         foreach (var line in _lines)
         {
-            InsertLyricGapBefore(_lyricButtons.Count);
             var visual = new LineVisual();
             FrameworkElement content;
             if (line.Words.Count > 0)
@@ -307,7 +308,7 @@ public sealed partial class NowPlayingView : UserControl
             };
             _lyricButtons.Add(button);
             _lineVisuals.Add(visual);
-            LyricsStack.Children.Add(button);
+            AddLyricButton(_lyricButtons.Count - 1, button);
         }
         HighlightCurrentLine(forceCenter: true);
         UpdateSeekAvailability();
@@ -340,7 +341,14 @@ public sealed partial class NowPlayingView : UserControl
     {
         var timestamp = _lyricsClockMs;
         var wasGapActive = _activeGapRow is not null;
-        if (UpdateLyricGap(timestamp)) forceCenter = true;
+        if (UpdateLyricGap(timestamp, out var gapResized)) forceCenter = true;
+        if (gapResized && IsLoaded && Visibility == Visibility.Visible)
+        {
+            LyricsStack.UpdateLayout();
+            // The ScrollViewer may preserve its own anchor while rows reflow.
+            // Continue the spring from that actual offset and retain velocity.
+            if (_scrollMoving && !_manualScrollHeld) _scrollPosition = LyricsScroller.VerticalOffset;
+        }
         var gapActive = _activeGapRow is not null;
         var index = -1;
         if (!gapActive)
@@ -370,10 +378,11 @@ public sealed partial class NowPlayingView : UserControl
         }
         // Word timing advances even while the containing lyric line stays the same.
         if (index >= 0) _lineVisuals[index].TimedText?.Update(timestamp, true, _animationsEnabled);
-        if ((forceCenter || _seekPending) && !_manualScrollHeld)
+        var recenter = forceCenter || _seekPending;
+        if ((recenter || gapResized) && !_manualScrollHeld)
         {
             AlignCurrentLine(phraseAdvance);
-            UpdateLyricBlur(force: true);
+            if (recenter) UpdateLyricBlur(force: true);
         }
     }
 
@@ -499,6 +508,7 @@ public sealed partial class NowPlayingView : UserControl
             _uiSettings.AnimationsEnabledChanged -= AnimationsEnabled_Changed;
             _motionSubscribed = false;
         }
+        HideActiveLyricGap();
         StopAllMotion();
         ReleaseLyricBlur();
         _scrollMoving = false;
@@ -544,7 +554,14 @@ public sealed partial class NowPlayingView : UserControl
             AnimateEntrance();
             QueueRecenter();
         }
-        else if (IsLoaded) { StopAllMotion(); ReleaseLyricBlur(); _scrollMoving = false; _scrollVelocity = 0; }
+        else if (IsLoaded)
+        {
+            HideActiveLyricGap();
+            StopAllMotion();
+            ReleaseLyricBlur();
+            _scrollMoving = false;
+            _scrollVelocity = 0;
+        }
     }
 
     private void AnimateEntrance()
