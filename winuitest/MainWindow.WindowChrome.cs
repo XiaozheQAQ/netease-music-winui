@@ -21,23 +21,42 @@ public sealed partial class MainWindow
     private void UpdateCaptionTheme()
     {
         if (_closed) return;
+        var titleBar = AppWindow.TitleBar;
+        if (IsAccentHighContrast)
+        {
+            // Let Windows use the user's contrast palette for every native state.
+            titleBar.ButtonBackgroundColor = null;
+            titleBar.ButtonInactiveBackgroundColor = null;
+            titleBar.ButtonHoverBackgroundColor = null;
+            titleBar.ButtonPressedBackgroundColor = null;
+            titleBar.ButtonForegroundColor = null;
+            titleBar.ButtonInactiveForegroundColor = null;
+            titleBar.ButtonHoverForegroundColor = null;
+            titleBar.ButtonPressedForegroundColor = null;
+            return;
+        }
+
         var immersive = NowPlaying.Visibility == Visibility.Visible;
+        var darkSurface = immersive || Root.ActualTheme == ElementTheme.Dark;
         var foreground = immersive ? Colors.White : ((SolidColorBrush)ThemeBrush("LumaTextPrimaryBrush")).Color;
         var mutedForeground = immersive ? Windows.UI.Color.FromArgb(255, 190, 190, 190)
             : ((SolidColorBrush)ThemeBrush("LumaTextTertiaryBrush")).Color;
-        var titleBar = AppWindow.TitleBar;
-        // With content extended into the title bar, all four background states
-        // support alpha. Setting only the resting state leaves a system hover
-        // rectangle over the Mica/artwork surface. Keep native hit testing and
-        // Snap layouts while letting that surface remain visible in every state.
+        var feedbackChannel = darkSurface ? (byte)255 : (byte)0;
+        // Extended native caption buttons support background alpha. Tint the
+        // actual shell/artwork underneath, with a stronger response on press.
+        // Only idle states are fully transparent; native hit testing and Snap stay.
         titleBar.ButtonBackgroundColor = Colors.Transparent;
         titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
-        titleBar.ButtonHoverBackgroundColor = Colors.Transparent;
-        titleBar.ButtonPressedBackgroundColor = Colors.Transparent;
+        titleBar.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(
+            immersive ? (byte)40 : darkSurface ? (byte)32 : (byte)20,
+            feedbackChannel, feedbackChannel, feedbackChannel);
+        titleBar.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(
+            immersive ? (byte)64 : darkSurface ? (byte)48 : (byte)36,
+            feedbackChannel, feedbackChannel, feedbackChannel);
         titleBar.ButtonForegroundColor = foreground;
         titleBar.ButtonInactiveForegroundColor = mutedForeground;
         titleBar.ButtonHoverForegroundColor = foreground;
-        titleBar.ButtonPressedForegroundColor = mutedForeground;
+        titleBar.ButtonPressedForegroundColor = foreground;
         // Windows deliberately retains its red Close-button hover/press states.
     }
 

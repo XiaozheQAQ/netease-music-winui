@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <AssemblyName>LumaMusicSetup</AssemblyName>
+    <Product>Luma Music Setup</Product>
+    <Company>XiaozheQAQ</Company>
+    <ApplicationIcon>..\..\winuitest\Assets\Luma.ico</ApplicationIcon>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishTrimmed>true</PublishTrimmed>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(LumaSetupMsiPath)" LogicalName="LumaMusic.Setup.Payload.msi" Condition="'$(LumaSetupMsiPath)' != ''" />
+  </ItemGroup>
+  <Target Name="RequireInstallerPayload" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('$(LumaSetupMsiPath)')" Text="Build this installer with scripts/package-exe.ps1 and an existing Luma Music MSI." />
+  </Target>
+</Project>

@@ -95,7 +95,7 @@ VIP 标记表示曲目本身的收费类别，不会因当前账号已购买而�
 
 侧栏、按钮、选项切换、列表和滑块沿用 WinUI 原生的悬停、按下、选中与禁用状态。侧栏选中项跟随实际页面，歌手、专辑、搜索等没有菜单入口的页面不会残留旧选中；快速导航保留原生指示条切换。页面切换、歌词视图及活动歌词行使用轻量原生动画，并遵循系统动画偏好。
 
-发现、搜索、歌单与云端歌单加载时显示与内容布局对应的骨架屏，沿用页面背景与主题配色。加载结束后淡入内容；快速切换页面会取消旧请求，避免旧结果和空状态叠加。侧栏歌单紧接“我的歌单”，与导航共用自然滚动区域，设置固定在底部。歌单卡片使用更大的原生圆角和内边距，列宽按实际可用空间自适应，包括打开待播清单时。
+发现、搜索、歌单与云端歌单加载时显示与内容布局对应的骨架屏，沿用页面背景与主题配色。加载结束后淡入内容；快速切换页面会取消旧请求，避免旧结果和空状态叠加。侧栏默认显示最多四个云端歌单，包含当前打开的歌单。点击“展开全部”可查看完整列表，设置固定在底部。歌单卡片使用更大的原生圆角和内边距，列宽按实际可用空间自适应，包括打开待播清单时。
 
 ## 架构
 
@@ -140,13 +140,24 @@ dotnet build .\winuitest\winuitest.csproj -p:Platform=x64 -p:MSBuildEnableWorklo
 
 ## 发布
 
-### MSI 安装包（推荐，无需导入证书）
+### EXE 安装包
+
+从 [GitHub Releases](https://github.com/XiaozheQAQ/netease-music-winui/releases/latest) 下载 Windows x64 EXE 并双击安装。EXE 内含完整的 MSI 和应用运行时，沿用 MSI 的安装、升级与卸载流程。
+
+```powershell
+pwsh -File .\scripts\package-msi.ps1
+pwsh -File .\scripts\package-exe.ps1 -Version 1.0.9
+```
+
+输出为 `artifacts/setup/LumaMusic_1.0.9_x64_Setup.exe`。打包脚本会校验内嵌的 MSI。
+
+### MSI 安装包
 
 ```powershell
 pwsh -File .\scripts\package-msi.ps1
 ```
 
-脚本通过项目工具清单恢复固定版本的官方 WiX 4.0.6，复用非打包、自包含的 WinUI 发布载荷，生成 `artifacts/msi/LumaMusic_1.0.8_x64.msi`。已经发布和准备工具时可添加 `-SkipPublish -SkipToolRestore` 仅重新打包。
+脚本通过项目工具清单恢复固定版本的官方 WiX 4.0.6，复用非打包、自包含的 WinUI 发布载荷，生成 `artifacts/msi/LumaMusic_1.0.9_x64.msi`。已经发布和准备工具时可添加 `-SkipPublish -SkipToolRestore` 仅重新打包。
 
 双击 MSI 即可安装到当前用户的 `%LOCALAPPDATA%\Programs\Luma Music`，不要求导入签名证书。安装向导支持选择目录；开始菜单提供启动与卸载入口，也可从 Windows“设置 → 应用”卸载。安装包包含 .NET、Windows App SDK、Node.js 与音源依赖；卸载保留独立存放的收藏、历史和设置。
 

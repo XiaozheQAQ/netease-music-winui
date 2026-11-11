@@ -94,7 +94,7 @@ public sealed partial class MainWindow
 
     private void UpdateCloudSidebar()
     {
-        UpdateSidebarPlaylists(_cloudPlaylists.Take(10));
+        UpdateSidebarPlaylists(_cloudPlaylists);
         UpdateResponsiveLayout();
     }
 

@@ -98,10 +98,18 @@ public sealed partial class MainWindow
         void AssertCaptionHover()
         {
             var titleBar = AppWindow.TitleBar;
-            Assert(titleBar.ButtonHoverBackgroundColor is { } hover
-                && (hover.A == 0 || hover.R + hover.G + hover.B > 32));
-            Assert(titleBar.ButtonPressedBackgroundColor is { } pressed
-                && (pressed.A == 0 || pressed.R + pressed.G + pressed.B > 32));
+            if (IsAccentHighContrast)
+            {
+                Assert(titleBar.ButtonHoverBackgroundColor is null);
+                Assert(titleBar.ButtonPressedBackgroundColor is null);
+                return;
+            }
+            Assert(titleBar.ButtonBackgroundColor is { A: 0 });
+            var hover = titleBar.ButtonHoverBackgroundColor.GetValueOrDefault();
+            var pressed = titleBar.ButtonPressedBackgroundColor.GetValueOrDefault();
+            Assert(hover.A > 0 && pressed.A > hover.A && pressed.A < 255);
+            var darkSurface = NowPlaying.Visibility == Visibility.Visible || Root.ActualTheme == ElementTheme.Dark;
+            Assert(darkSurface ? hover.R > 127 : hover.R < 128);
             Assert(titleBar.ButtonHoverForegroundColor is { A: > 0 });
         }
 
@@ -215,6 +223,10 @@ public sealed partial class MainWindow
 
             step = "navigation-history-routes-scroll-and-titlebar-input";
             await RunNavigationHistoryChecksAsync();
+            checks.Add(step);
+
+            step = "sidebar-playlist-preview-and-keyboard-selection";
+            await RunSidebarPreviewChecksAsync();
             checks.Add(step);
 
             var current = _player.CurrentTrack!;
